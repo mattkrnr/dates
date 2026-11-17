@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache when there's no connection.
 // Same-origin files are network-first (so list edits show up right away), cached as a fallback.
-const CACHE = 'whimsy-v3';
+const CACHE = 'whimsy-v4';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'lists/lists.yaml',
   'https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js'];
 
@@ -20,8 +20,11 @@ self.addEventListener('fetch', (e) => {
   const sameOrigin = url.origin === location.origin;
   const isLib = url.hostname === 'cdn.jsdelivr.net' || url.hostname.endsWith('googleapis.com') || url.hostname === 'fonts.gstatic.com';
   if (!sameOrigin && !isLib) return; // APIs (GitHub, weather, maps) go straight to the network
+  // Same-origin files always revalidate with GitHub Pages (skipping its 10-minute browser cache),
+  // so a new deploy shows up on the next open. Offline, fall back to the cached copy.
+  const req = sameOrigin ? new Request(e.request, { cache: 'no-cache' }) : e.request;
   e.respondWith(
-    fetch(e.request).then((res) => {
+    fetch(req).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(e.request, copy)); }
       return res;
     }).catch(() => caches.match(e.request, { ignoreSearch: true })),

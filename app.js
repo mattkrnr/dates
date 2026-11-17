@@ -858,6 +858,62 @@ async function init() {
   if (fromHome && link) link.hidden = false;
 })();
 
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+// ---------- app updates + pull to refresh ----------
+if ('serviceWorker' in navigator) {
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let reloading = false;
+  // When a new version of the app takes over, reload once so the new code runs.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    reloading = true;
+    location.reload();
+  });
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+  });
+}
+
+async function hardRefresh() {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    await reg?.update();
+  } catch { /* offline */ }
+  location.reload();
+}
+
+(function pullToRefresh() {
+  const bar = $('#ptr'), label = $('#ptrText');
+  const THRESHOLD = 80;
+  let startY = null, pulling = false, dist = 0;
+  const blocked = () => state.spinning || $('#result').open || window.scrollY > 0;
+  const show = (d) => {
+    const y = Math.min(d, 120) - 60;
+    bar.style.transform = `translate(-50%, ${y}px)`;
+    bar.style.opacity = String(Math.min(1, d / 50));
+    const ready = d >= THRESHOLD;
+    bar.classList.toggle('ready', ready);
+    label.textContent = ready ? 'Release to refresh' : 'Pull to refresh';
+  };
+  const reset = () => { bar.style.transition = 'transform .2s, opacity .2s'; bar.style.transform = 'translate(-50%, -60px)'; bar.style.opacity = '0'; setTimeout(() => { bar.style.transition = ''; }, 220); };
+  addEventListener('touchstart', (e) => {
+    if (blocked() || e.touches.length !== 1) { startY = null; return; }
+    startY = e.touches[0].clientY; pulling = false; dist = 0;
+  }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (startY == null) return;
+    dist = (e.touches[0].clientY - startY) * 0.6;
+    if (dist > 8 && window.scrollY <= 0) { pulling = true; show(dist); }
+    else if (pulling && dist <= 8) { pulling = false; reset(); }
+  }, { passive: true });
+  addEventListener('touchend', () => {
+    if (pulling && dist >= THRESHOLD) {
+      bar.classList.add('loading'); label.textContent = 'Refreshing…';
+      bar.style.transform = 'translate(-50%, 16px)';
+      hardRefresh();
+    } else if (pulling) reset();
+    startY = null; pulling = false;
+  }, { passive: true });
+})();
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

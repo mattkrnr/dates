@@ -184,3 +184,15 @@ dialog[open] { animation: pop .35s cubic-bezier(.2, 1.4, .4, 1); }
 .actions a[hidden] { display: none; }
 
 #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 1000; width: 100vw; height: 100vh; }
+
+/* Pull to refresh */
+#ptr {
+  position: fixed; top: 0; left: 50%; z-index: 50; transform: translate(-50%, -60px);
+  background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 14px;
+  font: 600 .88rem var(--body); box-shadow: 0 6px 16px rgba(0,0,0,.2); pointer-events: none;
+  margin-top: env(safe-area-inset-top); opacity: 0;
+}
+#ptr.ready { background: var(--accent); }
+#ptr .spin { display: inline-block; }
+#ptr.loading .spin { animation: ptrspin .8s linear infinite; }
+@keyframes ptrspin { to { transform: rotate(360deg); } }
