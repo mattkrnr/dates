@@ -14,7 +14,7 @@ jobs:
       - name: Ping the database
         run: |
           code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            "https://bkhhcsmbpnlgsnbzblov.supabase.co/rest/v1/rpc/check_code" \
+            "https://bkhhcsmbpnlgsnbzblov.supabase.co/rest/v1/rpc/whimsy_check_code" \
             -H "apikey: sb_publishable_JdJa4qMmvvrD96M3fDvbQA_WGQSvzfu" \
             -H "Content-Type: application/json" \
             -d '{"p_list":"keepalive","p_code":"ping"}')

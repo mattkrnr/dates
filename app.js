@@ -368,7 +368,7 @@ async function loadHistory() {
   if (!sbReady()) { note.textContent = "History storage isn't connected yet."; return; }
   if (!passcode()) { note.textContent = '🔒 Enter this list\'s passcode in ⚙️ Settings to see and log your dates.'; state.history = []; renderHistory(); render(); return; }
   try {
-    const data = await rpc('get_history', { p_list: listId, p_code: passcode() });
+    const data = await rpc('whimsy_get_history', { p_list: listId, p_code: passcode() });
     if (run !== historyRun || state.list.id !== listId) return;
     state.history = Array.isArray(data) ? data : [];
     store.set('historyCache:' + listId, state.history);
@@ -434,7 +434,7 @@ async function saveLog() {
   const btn = $('#logSave');
   btn.disabled = true; status.textContent = 'Saving…';
   try {
-    const row = await rpc('add_history', {
+    const row = await rpc('whimsy_add_history', {
       p_list: state.list.id, p_code: passcode(), p_idea: idea, p_date: date,
       p_rating: state.stars || null, p_note: $('#logNote').value.trim(),
     });
@@ -456,7 +456,7 @@ async function removeHistory(h) {
   if (!passcode()) { needPasscode($('#logStatus')); return; }
   if (!confirm(`Remove "${h.idea}" on ${prettyDate(h.date)} from your history?`)) return;
   try {
-    await rpc('delete_history', { p_list: state.list.id, p_code: passcode(), p_id: h.id });
+    await rpc('whimsy_delete_history', { p_list: state.list.id, p_code: passcode(), p_id: h.id });
     state.history = state.history.filter((x) => x.id !== h.id);
     store.set('historyCache:' + state.list.id, state.history);
     renderHistory(); render();
@@ -795,7 +795,7 @@ function bindHistoryAndSettings() {
     if (!code) { store.del('code:' + id); st.textContent = 'Passcode removed from this phone.'; loadHistory(); return; }
     st.textContent = 'Checking…';
     try {
-      const ok = await rpc('check_code', { p_list: id, p_code: code });
+      const ok = await rpc('whimsy_check_code', { p_list: id, p_code: code });
       if (ok) { store.set('code:' + id, code); st.textContent = '✓ Unlocked. This phone can now see and log dates for this list.'; $('#code').value = ''; loadHistory(); }
       else st.textContent = "That passcode doesn't match this list.";
     } catch (e) { st.textContent = e.message; }

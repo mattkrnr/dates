@@ -44,7 +44,7 @@ Addresses are turned into map coordinates with OpenStreetMap's free geocoder, an
 
 ## Saving "Our dates"
 
-Date history is stored in Supabase (free tier), and each list is protected by its own passcode:
+Date history is stored in Supabase (free tier), in the **Shared** project: the project for apps that you, your partner and friends use. Every table and function there is prefixed with its app's name (`whimsy_…`, `flashcards_…`). Each list is protected by its own passcode:
 
 - The tables are locked down. The app's public key can only call the functions in `supabase/setup.sql`, and each one checks the list's passcode first.
 - Passcodes are stored as salted hashes, never in plain text.
@@ -53,7 +53,7 @@ Date history is stored in Supabase (free tier), and each list is protected by it
 **Setup**
 
 1. Create a free project at supabase.com.
-2. In SQL Editor, run `supabase/setup.sql`.
+2. In SQL Editor, run `supabase/setup.sql`. (`supabase/migrate-to-shared-layout.sql` is the one-time upgrade for the project created before the prefixes.)
 3. For each list, run `supabase/set-passcode.sql` with that list's id and a passcode you choose.
 4. Put the Project URL and publishable key in `CONFIG` at the top of `app.js`.
 
