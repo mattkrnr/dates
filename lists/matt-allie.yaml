@@ -6,6 +6,9 @@
   when: weekend
   daylight: true
   season: [spring, summer, fall]
+  outdoor: true
+  budget: "$$"
+  energy: medium
   notes: 42 acres of sculpture gardens. Buy timed tickets online. Rat's restaurant is on site for dinner after.
 
 - name: Hike Washington Crossing State Park
@@ -13,6 +16,9 @@
   when: weekend
   daylight: true
   season: any
+  outdoor: true
+  budget: "$"
+  energy: active
   notes: Gates open 8–4:30. Trails through the woods where Washington crossed the Delaware.
 
 - name: Summit hike at Baldpate Mountain
@@ -20,6 +26,9 @@
   when: weekend
   daylight: true
   season: [spring, summer, fall]
+  outdoor: true
+  budget: "$"
+  energy: active
   notes: Highest point in Mercer County, with views over the Delaware.
 
 - name: Wine tasting at Hopewell Valley Vineyards
@@ -27,12 +36,18 @@
   when: weekend
   daylight: true
   season: any
+  outdoor: false
+  budget: "$$"
+  energy: chill
 
 - name: Graze the Trenton Farmers Market
   address: 960 Spruce St, Lawrence Township, NJ 08648
   when: weekend
   daylight: true
   season: any
+  outdoor: false
+  budget: "$"
+  energy: chill
   notes: Indoor and open all year, but hours shrink in winter, so check before going.
   link: https://www.thetrentonfarmersmarket.com
 
@@ -41,6 +56,9 @@
   when: either
   daylight: false
   season: summer
+  outdoor: true
+  budget: "$"
+  energy: chill
   notes: Season starts in June. $1 hot dogs on Wednesdays, and some nights end with fireworks.
 
 - name: Trenton Ironhawks hockey game
@@ -48,6 +66,9 @@
   when: either
   daylight: false
   season: [fall, winter, spring]
+  outdoor: false
+  budget: "$$"
+  energy: medium
   notes: New ECHL team at CURE Insurance Arena, starting with the 2026–27 season.
 
 - name: Ice skating at Mercer County Park
@@ -55,16 +76,25 @@
   when: either
   daylight: false
   season: winter
+  outdoor: true
+  budget: "$"
+  energy: active
 
 - name: Homemade pizza night
   address: home
   when: weeknight
   daylight: false
   season: any
+  outdoor: false
+  budget: "$"
+  energy: chill
 
 - name: Movie marathon fort
   address: home
   when: either
   daylight: false
   season: [fall, winter]
+  outdoor: false
+  budget: "$"
+  energy: chill
   notes: Blankets, snacks, and a trilogy neither of you has seen.

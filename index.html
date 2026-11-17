@@ -4,6 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Wheel of Whimsy</title>
+  <meta name="theme-color" content="#fff6ec">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Whimsy">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
@@ -21,6 +28,16 @@
   </header>
 
   <main>
+    <div id="reminder" class="reminder" hidden></div>
+
+    <section class="plan panel">
+      <div class="plan-row">
+        <span class="label">Planning for</span>
+        <div class="chips" id="planChips"></div>
+      </div>
+      <p id="forecast" class="forecast"></p>
+    </section>
+
     <section class="wheel-wrap">
       <div class="pointer" aria-hidden="true"></div>
       <canvas id="wheel" aria-label="Wheel of date ideas"></canvas>
@@ -28,7 +45,7 @@
     </section>
     <p id="status" class="status" aria-live="polite"></p>
 
-    <form id="filters" class="filters" onsubmit="return false">
+    <form id="filters" class="filters panel" onsubmit="return false">
       <div class="filter-row">
         <span class="label">When</span>
         <div class="chips">
@@ -41,16 +58,33 @@
         <span class="label">Light</span>
         <div class="chips">
           <label><input type="radio" name="light" value="any"><span>Doesn't matter</span></label>
-          <label><input type="radio" name="light" value="dark"><span>🌙 It's dark out</span></label>
+          <label><input type="radio" name="light" value="dark"><span id="darkLabel">🌙 After sunset</span></label>
         </div>
       </div>
       <div class="filter-row">
         <span class="label">Season</span>
         <div class="chips">
-          <label><input type="radio" name="season" value="now"><span id="nowSeasonLabel">Right now</span></label>
+          <label><input type="radio" name="season" value="now"><span id="nowSeasonLabel">That day</span></label>
           <label><input type="radio" name="season" value="any"><span>Any</span></label>
           <label><input type="radio" name="season" value="winter"><span>❄️ Winter</span></label>
           <label><input type="radio" name="season" value="summer"><span>☀️ Summer</span></label>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="label">Budget</span>
+        <div class="chips">
+          <label><input type="radio" name="budget" value="any"><span>Any</span></label>
+          <label><input type="radio" name="budget" value="1"><span>$</span></label>
+          <label><input type="radio" name="budget" value="2"><span>Up to $$</span></label>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="label">Energy</span>
+        <div class="chips">
+          <label><input type="radio" name="energy" value="any"><span>Any</span></label>
+          <label><input type="radio" name="energy" value="chill"><span>🛋️ Chill</span></label>
+          <label><input type="radio" name="energy" value="medium"><span>🚶 Medium</span></label>
+          <label><input type="radio" name="energy" value="active"><span>🏃 Active</span></label>
         </div>
       </div>
       <div class="filter-row">
@@ -71,10 +105,42 @@
       </div>
     </form>
 
-    <details class="idea-list">
-      <summary>What's on the wheel <span id="matchCount"></span></summary>
-      <ul id="ideaList"></ul>
-      <p class="hint">The wheel holds up to 12 ideas. If more match, it picks 12 at random, and each spin shuffles new ones in.</p>
+    <details class="panel idea-list">
+      <summary>What's on the wheel <span id="matchCount" class="muted"></span></summary>
+      <ul id="ideaList" class="rows"></ul>
+      <p class="hint">The wheel holds up to 12 ideas, picked at random if more match. Dates you did in the last 30 days sit out unless there'd be fewer than 3 left.</p>
+    </details>
+
+    <details class="panel history" id="historyPanel">
+      <summary>📖 Our dates <span id="histCount" class="muted"></span></summary>
+      <form id="logForm" class="log-form" onsubmit="return false">
+        <select id="logIdea" aria-label="Which date"></select>
+        <div class="log-row">
+          <input id="logDate" type="date" aria-label="When">
+          <div class="stars" id="logStars" role="radiogroup" aria-label="Rating">
+            <button type="button" data-v="1">★</button><button type="button" data-v="2">★</button><button type="button" data-v="3">★</button><button type="button" data-v="4">★</button><button type="button" data-v="5">★</button>
+          </div>
+        </div>
+        <textarea id="logNote" rows="2" placeholder="Notes: what was great, what to try next time"></textarea>
+        <button id="logSave" class="primary-btn" type="button">✓ We did it</button>
+        <p id="logStatus" class="hint"></p>
+      </form>
+      <ul id="historyList" class="rows"></ul>
+    </details>
+
+    <details class="panel settings">
+      <summary>⚙️ Settings</summary>
+      <p class="hint">To save "Our dates," this phone needs a GitHub token that can write to the <code>dates</code> repo. You only paste it once, and it stays on this device.</p>
+      <ol class="hint">
+        <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → new fine-grained token</a></li>
+        <li>Under repository access, choose <b>Only select repositories</b> → <b>dates</b></li>
+        <li>Under permissions, set <b>Contents → Read and write</b>. Then generate it and paste it below.</li>
+      </ol>
+      <div class="token-row">
+        <input id="token" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="GitHub token">
+        <button id="tokenSave" type="button" class="primary-btn">Save</button>
+      </div>
+      <p id="tokenStatus" class="hint"></p>
     </details>
   </main>
 
@@ -85,10 +151,12 @@
   <dialog id="result">
     <div class="result-card">
       <button id="rClose" class="close-x" type="button" aria-label="Close">&times;</button>
-      <p class="kicker">Tonight's date is…</p>
+      <p class="kicker" id="rKicker">Your date is…</p>
       <h2 id="rName"></h2>
       <p id="rNotes" class="notes"></p>
       <div id="rTags" class="tags"></div>
+      <p id="rWeather" class="weather-warn" hidden></p>
+      <p id="rHistory" class="r-history" hidden></p>
       <p id="rAddress" class="address"></p>
       <div class="actions">
         <button id="rYes" class="primary" type="button">Let's do it 🎉</button>

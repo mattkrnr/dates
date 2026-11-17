@@ -5,6 +5,9 @@
 #   when:     weeknight | weekend | either
 #   daylight: true if it needs daylight, false if it works after dark
 #   season:   any | winter | summer | spring | fall  (or a list, like [spring, summer, fall])
+#   outdoor:  true if it's outside (gets a weather heads-up), false otherwise
+#   budget:   "$" | "$$" | "$$$"   (keep the quotes)
+#   energy:   chill | medium | active
 #   notes:    optional, shown when it's picked
 #   link:     optional website
 #   lat/lng:  optional, only if the address lookup puts it in the wrong spot
@@ -16,6 +19,9 @@
   when: weekend
   daylight: true
   season: any
+  outdoor: false
+  budget: "$$"
+  energy: chill
   notes: Tastings run noon–5. Check their site for live music days.
   link: https://unionvillevineyards.com
 
@@ -24,6 +30,9 @@
   when: weekend
   daylight: true
   season: any
+  outdoor: true
+  budget: "$"
+  energy: medium
   notes: Farm store is open all year. The winery is open later on Fridays.
   link: https://terhuneorchards.com
 
@@ -32,6 +41,9 @@
   when: weekend
   daylight: true
   season: [spring, summer, fall]
+  outdoor: true
+  budget: "$"
+  energy: active
   notes: Cross the footbridge over the Delaware into PA and back.
 
 - name: Howell Living History Farm
@@ -39,6 +51,9 @@
   when: weekend
   daylight: true
   season: [spring, summer, fall]
+  outdoor: true
+  budget: "$"
+  energy: medium
   notes: Free. Open Tue–Sat 10–4, Sun noon–4. Corn maze in the fall.
 
 - name: Ice skating at Mercer County Park
@@ -46,6 +61,9 @@
   when: either
   daylight: false
   season: winter
+  outdoor: true
+  budget: "$"
+  energy: active
   notes: Open-air covered rink with a fireplace lounge. Check the public skate schedule.
 
 - name: Arthouse movie at the Princeton Garden Theatre
@@ -53,6 +71,9 @@
   when: either
   daylight: false
   season: any
+  outdoor: false
+  budget: "$$"
+  energy: chill
   link: https://www.princetongardentheatre.org
 
 - name: Stroll Lambertville and New Hope
@@ -60,6 +81,9 @@
   when: weekend
   daylight: false
   season: any
+  outdoor: true
+  budget: "$$"
+  energy: medium
   notes: Walk the bridge to New Hope, browse shops, grab dinner on either side.
 
 - name: Cook something neither of us has made before
@@ -67,9 +91,15 @@
   when: weeknight
   daylight: false
   season: any
+  outdoor: false
+  budget: "$"
+  energy: chill
 
 - name: Backyard stargazing with hot drinks
   address: home
   when: either
   daylight: false
   season: [spring, summer, fall]
+  outdoor: true
+  budget: "$"
+  energy: chill
