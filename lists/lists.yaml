@@ -4,5 +4,9 @@
 # Their link will be: https://mattkrnr.github.io/dates/?list=<id>
 
 - id: matt
-  name: Matt's list
+  name: Matt and Sam's list
   zip: "08551"   # default "distance from" ZIP; anyone can change it in the app
+
+- id: matt-allie
+  name: Matt and Allie's list
+  zip: "08628"

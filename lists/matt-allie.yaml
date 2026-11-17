@@ -1,0 +1,70 @@
+# Date ideas for Matt and Allie. Format is explained at the top of lists/matt.yaml.
+# These are SAMPLE ideas near 08628. Swap in your own!
+
+- name: Wander Grounds For Sculpture
+  address: 80 Sculptors Way, Hamilton, NJ 08619
+  when: weekend
+  daylight: true
+  season: [spring, summer, fall]
+  notes: 42 acres of sculpture gardens. Buy timed tickets online. Rat's restaurant is on site for dinner after.
+
+- name: Hike Washington Crossing State Park
+  address: 355 Washington Crossing-Pennington Rd, Titusville, NJ 08560
+  when: weekend
+  daylight: true
+  season: any
+  notes: Gates open 8–4:30. Trails through the woods where Washington crossed the Delaware.
+
+- name: Summit hike at Baldpate Mountain
+  address: 28 Fiddlers Creek Rd, Titusville, NJ 08560
+  when: weekend
+  daylight: true
+  season: [spring, summer, fall]
+  notes: Highest point in Mercer County, with views over the Delaware.
+
+- name: Wine tasting at Hopewell Valley Vineyards
+  address: 46 Yard Rd, Pennington, NJ 08534
+  when: weekend
+  daylight: true
+  season: any
+
+- name: Graze the Trenton Farmers Market
+  address: 960 Spruce St, Lawrence Township, NJ 08648
+  when: weekend
+  daylight: true
+  season: any
+  notes: Indoor and open all year, but hours shrink in winter, so check before going.
+  link: https://www.thetrentonfarmersmarket.com
+
+- name: Trenton Thunder baseball game
+  address: 1 Thunder Rd, Trenton, NJ 08611
+  when: either
+  daylight: false
+  season: summer
+  notes: Season starts in June. $1 hot dogs on Wednesdays, and some nights end with fireworks.
+
+- name: Trenton Ironhawks hockey game
+  address: 81 Hamilton Ave, Trenton, NJ 08611
+  when: either
+  daylight: false
+  season: [fall, winter, spring]
+  notes: New ECHL team at CURE Insurance Arena, starting with the 2026–27 season.
+
+- name: Ice skating at Mercer County Park
+  address: 1638 Old Trenton Rd, West Windsor, NJ 08550
+  when: either
+  daylight: false
+  season: winter
+
+- name: Homemade pizza night
+  address: home
+  when: weeknight
+  daylight: false
+  season: any
+
+- name: Movie marathon fort
+  address: home
+  when: either
+  daylight: false
+  season: [fall, winter]
+  notes: Blankets, snacks, and a trilogy neither of you has seen.

@@ -424,6 +424,9 @@ async function init() {
   addEventListener('resize', sizeCanvas);
   $('#spinBtn').addEventListener('click', spin);
   $('#rYes').addEventListener('click', () => { $('#result').close(); confetti(); });
+  $('#rClose').addEventListener('click', () => $('#result').close());
+  // Tapping the dimmed area outside the card also closes it.
+  $('#result').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('#rNo').addEventListener('click', () => {
     state.skipped.add(Number($('#result').dataset.id));
     $('#result').close();
