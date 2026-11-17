@@ -844,6 +844,20 @@ async function init() {
   await loadList(wanted);
 }
 
+// Back arrow to the apps homepage — shown only when this tab was opened from it (?from=home).
+(function homeBack() {
+  const url = new URL(location.href);
+  if (url.searchParams.get('from') === 'home') {
+    try { sessionStorage.setItem('fromHome', '1'); } catch (_) {}
+    url.searchParams.delete('from');
+    history.replaceState(null, '', url);
+  }
+  let fromHome = false;
+  try { fromHome = sessionStorage.getItem('fromHome') === '1'; } catch (_) {}
+  const link = document.getElementById('homeBack');
+  if (fromHome && link) link.hidden = false;
+})();
+
 if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

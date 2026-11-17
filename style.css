@@ -35,6 +35,14 @@ body {
 .top h1 {
   font-family: var(--display); font-weight: 800; font-size: 1.7rem; margin: 0; letter-spacing: -0.02em; white-space: nowrap;
 }
+.title { display: flex; align-items: center; gap: 10px; }
+.home-back {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 999px; flex: none;
+  background: var(--card); border: 1.5px solid var(--line);
+  color: var(--ink); text-decoration: none; font-size: 1.15rem; line-height: 1;
+}
+.home-back:hover { border-color: var(--accent); }
 .top h1 em { font-style: italic; font-weight: 600; color: var(--accent); }
 .list-picker select {
   font: 500 0.95rem var(--body); color: var(--ink);
