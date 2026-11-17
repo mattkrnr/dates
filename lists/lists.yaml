@@ -1,0 +1,8 @@
+# Every list in the app. To add a friend's list:
+#   1. Add an entry below (id = file name, no spaces)
+#   2. Create lists/<id>.yaml (copy lists/matt.yaml as a starting point)
+# Their link will be: https://mattkrnr.github.io/dates/?list=<id>
+
+- id: matt
+  name: Matt's list
+  zip: "08551"   # default "distance from" ZIP; anyone can change it in the app

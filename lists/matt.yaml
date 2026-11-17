@@ -1,0 +1,75 @@
+# Date ideas. Each idea starts with "- name:".
+#
+#   name:     what the date is (required)
+#   address:  full street address, or "home"
+#   when:     weeknight | weekend | either
+#   daylight: true if it needs daylight, false if it works after dark
+#   season:   any | winter | summer | spring | fall  (or a list, like [spring, summer, fall])
+#   notes:    optional, shown when it's picked
+#   link:     optional website
+#   lat/lng:  optional, only if the address lookup puts it in the wrong spot
+#
+# These are SAMPLE ideas near 08551. Swap in your own!
+
+- name: Wine tasting at Unionville Vineyards
+  address: 9 Rocktown Rd, Ringoes, NJ 08551
+  when: weekend
+  daylight: true
+  season: any
+  notes: Tastings run noon–5. Check their site for live music days.
+  link: https://unionvillevineyards.com
+
+- name: Cider donuts + farm stroll at Terhune Orchards
+  address: 330 Cold Soil Rd, Princeton, NJ 08540
+  when: weekend
+  daylight: true
+  season: any
+  notes: Farm store is open all year. The winery is open later on Fridays.
+  link: https://terhuneorchards.com
+
+- name: Walk the towpath from Bulls Island
+  address: 2185 Daniel Bray Hwy, Stockton, NJ 08559
+  when: weekend
+  daylight: true
+  season: [spring, summer, fall]
+  notes: Cross the footbridge over the Delaware into PA and back.
+
+- name: Howell Living History Farm
+  address: 70 Woodens Ln, Lambertville, NJ 08530
+  when: weekend
+  daylight: true
+  season: [spring, summer, fall]
+  notes: Free. Open Tue–Sat 10–4, Sun noon–4. Corn maze in the fall.
+
+- name: Ice skating at Mercer County Park
+  address: 1638 Old Trenton Rd, West Windsor, NJ 08550
+  when: either
+  daylight: false
+  season: winter
+  notes: Open-air covered rink with a fireplace lounge. Check the public skate schedule.
+
+- name: Arthouse movie at the Princeton Garden Theatre
+  address: 160 Nassau St, Princeton, NJ 08542
+  when: either
+  daylight: false
+  season: any
+  link: https://www.princetongardentheatre.org
+
+- name: Stroll Lambertville and New Hope
+  address: Bridge St, Lambertville, NJ 08530
+  when: weekend
+  daylight: false
+  season: any
+  notes: Walk the bridge to New Hope, browse shops, grab dinner on either side.
+
+- name: Cook something neither of us has made before
+  address: home
+  when: weeknight
+  daylight: false
+  season: any
+
+- name: Backyard stargazing with hot drinks
+  address: home
+  when: either
+  daylight: false
+  season: [spring, summer, fall]

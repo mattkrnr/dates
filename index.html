@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Spin for a Date</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <h1>Spin <em>for a</em> Date</h1>
+    <label class="list-picker">
+      <span class="sr">Whose list</span>
+      <select id="listSelect"></select>
+    </label>
+  </header>
+
+  <main>
+    <section class="wheel-wrap">
+      <div class="pointer" aria-hidden="true"></div>
+      <canvas id="wheel" aria-label="Wheel of date ideas"></canvas>
+      <button id="spinBtn" class="spin-btn" type="button">SPIN</button>
+    </section>
+    <p id="status" class="status" aria-live="polite"></p>
+
+    <form id="filters" class="filters" onsubmit="return false">
+      <div class="filter-row">
+        <span class="label">When</span>
+        <div class="chips">
+          <label><input type="radio" name="when" value="any"><span>Whenever</span></label>
+          <label><input type="radio" name="when" value="weeknight"><span>Weeknight</span></label>
+          <label><input type="radio" name="when" value="weekend"><span>Weekend</span></label>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="label">Light</span>
+        <div class="chips">
+          <label><input type="radio" name="light" value="any"><span>Doesn't matter</span></label>
+          <label><input type="radio" name="light" value="dark"><span>🌙 It's dark out</span></label>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="label">Season</span>
+        <div class="chips">
+          <label><input type="radio" name="season" value="now"><span id="nowSeasonLabel">Right now</span></label>
+          <label><input type="radio" name="season" value="any"><span>Any</span></label>
+          <label><input type="radio" name="season" value="winter"><span>❄️ Winter</span></label>
+          <label><input type="radio" name="season" value="summer"><span>☀️ Summer</span></label>
+        </div>
+      </div>
+      <div class="filter-row">
+        <span class="label">Distance</span>
+        <div class="distance">
+          <select name="maxMiles" id="maxMiles">
+            <option value="0">Any distance</option>
+            <option value="5">Within 5 mi</option>
+            <option value="10">Within 10 mi</option>
+            <option value="20">Within 20 mi</option>
+            <option value="30">Within 30 mi</option>
+            <option value="50">Within 50 mi</option>
+            <option value="100">Within 100 mi</option>
+          </select>
+          <span>of</span>
+          <input id="zip" name="zip" inputmode="numeric" pattern="\d{5}" maxlength="5" placeholder="ZIP" aria-label="ZIP code">
+        </div>
+      </div>
+    </form>
+
+    <details class="idea-list">
+      <summary>What's on the wheel <span id="matchCount"></span></summary>
+      <ul id="ideaList"></ul>
+      <p class="hint">The wheel holds up to 12 ideas. If more match, it picks 12 at random, and each spin shuffles new ones in.</p>
+    </details>
+  </main>
+
+  <footer>
+    <a id="editLink" target="_blank" rel="noopener">✏️ Add or edit ideas in this list</a>
+  </footer>
+
+  <dialog id="result">
+    <div class="result-card">
+      <p class="kicker">Tonight's date is…</p>
+      <h2 id="rName"></h2>
+      <p id="rNotes" class="notes"></p>
+      <div id="rTags" class="tags"></div>
+      <p id="rAddress" class="address"></p>
+      <div class="actions">
+        <button id="rYes" class="primary" type="button">Let's do it 🎉</button>
+        <a id="rMap" class="secondary" target="_blank" rel="noopener">Directions</a>
+        <a id="rLink" class="secondary" target="_blank" rel="noopener" hidden>Website</a>
+        <button id="rNo" class="ghost" type="button">Nah, spin again</button>
+      </div>
+    </div>
+  </dialog>
+
+  <canvas id="confetti" aria-hidden="true"></canvas>
+</body>
+</html>
