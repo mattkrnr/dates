@@ -1,4 +1,4 @@
-# Spin for a Date 🎡
+# Wheel of Whimsy 🎡
 
 A spin wheel that picks a date idea for you, filtered by:
 

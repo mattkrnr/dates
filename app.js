@@ -1,4 +1,4 @@
-// Spin for a Date — static app for GitHub Pages.
+// Wheel of Whimsy — static app for GitHub Pages.
 // Lists live in lists/lists.yaml (the index) and lists/<id>.yaml (the ideas).
 
 const CONFIG = {
