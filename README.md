@@ -9,7 +9,7 @@ Live at: https://mattkrnr.github.io/dates/
 - **Planning for:** choose today, tomorrow, Saturday, or any date. That day's forecast and sunset time drive the filters.
 - **Filters:** weeknight/weekend, after sunset, season, budget ($ / $$ / $$$), energy (chill / medium / active), and distance from a ZIP (straight line).
 - **Weather heads-up:** outdoor ideas get a badge when the planned day has a 50%+ chance of rain or snow, a high below 40°, or a high above 92°. Forecasts come from Open-Meteo and reach about 16 days out.
-- **Our dates:** log the dates you went on, with a 1–5 star rating and notes. Ideas you did in the last 30 days sit out of the wheel for a while.
+- **Our dates:** log the dates you went on, with a 1–5 star rating and notes. History is private to each list, behind a passcode. Ideas you did in the last 30 days sit out of the wheel for a while.
 - **Phone app:** in Safari, tap Share → Add to Home Screen.
 
 ## Your own list
@@ -44,12 +44,18 @@ Addresses are turned into map coordinates with OpenStreetMap's free geocoder, an
 
 ## Saving "Our dates"
 
-History is saved to `history/<list id>.json` in this repo through the GitHub API. Each phone that logs dates needs a fine-grained GitHub token, entered once under ⚙️ Settings in the app:
+Date history is stored in Supabase (free tier), and each list is protected by its own passcode:
 
-- Repository access: **Only select repositories → dates**
-- Permissions: **Contents → Read and write**
+- The tables are locked down. The app's public key can only call the functions in `supabase/setup.sql`, and each one checks the list's passcode first.
+- Passcodes are stored as salted hashes, never in plain text.
+- Each phone enters the passcode once under ⚙️ Settings. Anyone with a list's passcode can see and log that list's dates.
 
-The token stays on that phone only. Anyone can view history without a token.
+**Setup**
+
+1. Create a free project at supabase.com.
+2. In SQL Editor, run `supabase/setup.sql`.
+3. For each list, run `supabase/set-passcode.sql` with that list's id and a passcode you choose.
+4. Put the Project URL and publishable key in `CONFIG` at the top of `app.js`.
 
 ## Setup (one time)
 

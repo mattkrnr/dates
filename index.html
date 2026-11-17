@@ -113,6 +113,7 @@
 
     <details class="panel history" id="historyPanel">
       <summary>📖 Our dates <span id="histCount" class="muted"></span></summary>
+      <p id="histNote" class="hint"></p>
       <form id="logForm" class="log-form" onsubmit="return false">
         <select id="logIdea" aria-label="Which date"></select>
         <div class="log-row">
@@ -130,17 +131,13 @@
 
     <details class="panel settings">
       <summary>⚙️ Settings</summary>
-      <p class="hint">To save "Our dates," this phone needs a GitHub token that can write to the <code>dates</code> repo. You only paste it once, and it stays on this device.</p>
-      <ol class="hint">
-        <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub → new fine-grained token</a></li>
-        <li>Under repository access, choose <b>Only select repositories</b> → <b>dates</b></li>
-        <li>Under permissions, set <b>Contents → Read and write</b>. Then generate it and paste it below.</li>
-      </ol>
+      <p class="hint">Your dates are private. Each list has a passcode, and anyone who has it can see and log dates for that list. Enter it once per phone.</p>
+      <label class="label" for="code">Passcode for <span id="codeFor">this list</span></label>
       <div class="token-row">
-        <input id="token" type="password" autocomplete="off" placeholder="github_pat_…" aria-label="GitHub token">
-        <button id="tokenSave" type="button" class="primary-btn">Save</button>
+        <input id="code" type="password" autocomplete="off" placeholder="List passcode">
+        <button id="codeSave" type="button" class="primary-btn">Unlock</button>
       </div>
-      <p id="tokenStatus" class="hint"></p>
+      <p id="codeStatus" class="hint"></p>
     </details>
   </main>
 

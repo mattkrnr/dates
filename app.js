@@ -1,6 +1,6 @@
 // Wheel of Whimsy — static app for GitHub Pages.
 // Lists live in lists/lists.yaml (the index) and lists/<id>.yaml (the ideas).
-// Date history lives in history/<id>.json and is written through the GitHub API.
+// Date history lives in Supabase, behind a passcode per list (see supabase/setup.sql).
 
 const CONFIG = {
   repo: 'mattkrnr/dates',
@@ -9,6 +9,10 @@ const CONFIG = {
   restDays: 30,        // a date done within this many days sits out of the wheel
   minPool: 3,          // ...unless that would leave fewer than this many on the wheel
   rainPct: 50, coldF: 40, hotF: 92,
+  // Supabase project for date history. The key below is the public "publishable"/anon key,
+  // which is safe to ship: the tables are locked and every function checks the list passcode.
+  supabaseUrl: '',
+  supabaseKey: '',
 };
 
 const SEASONS = ['winter', 'spring', 'summer', 'fall'];
@@ -333,61 +337,54 @@ function isResting(idea) {
   return gap >= 0 && gap < CONFIG.restDays;
 }
 
-// ---------- GitHub API ----------
-const GH = 'https://api.github.com';
-const token = () => store.get('ghToken', '');
-const ghHeaders = () => ({ Authorization: `Bearer ${token()}`, Accept: 'application/vnd.github+json' });
-function b64encode(str) { const bytes = new TextEncoder().encode(str); let bin = ''; bytes.forEach((b) => { bin += String.fromCharCode(b); }); return btoa(bin); }
-function b64decode(b64) { const bin = atob(b64.replace(/\s/g, '')); return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))); }
+// ---------- Supabase (history storage) ----------
+// Tables are locked; the app only calls passcode-checked functions (see supabase/setup.sql).
+const sbReady = () => Boolean(CONFIG.supabaseUrl && CONFIG.supabaseKey);
+const passcode = () => (state.list ? store.get('code:' + state.list.id, '') : '');
 
-async function ghRead(path) {
-  const res = await fetch(`${GH}/repos/${CONFIG.repo}/contents/${path}?ref=${CONFIG.branch}&t=${Date.now()}`, { headers: ghHeaders(), cache: 'no-store' });
-  if (res.status === 404) return { sha: null, data: [] };
-  if (!res.ok) throw new Error(`GitHub said ${res.status}`);
-  const j = await res.json();
-  return { sha: j.sha, data: JSON.parse(b64decode(j.content) || '[]') };
-}
+class PasscodeError extends Error {}
 
-// Read-modify-write with one retry if someone else saved at the same moment.
-async function ghUpdate(path, mutate, message) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const { sha, data } = await ghRead(path);
-    const next = mutate(Array.isArray(data) ? data : []);
-    const body = { message, content: b64encode(JSON.stringify(next, null, 2) + '\n'), branch: CONFIG.branch };
-    if (sha) body.sha = sha;
-    const res = await fetch(`${GH}/repos/${CONFIG.repo}/contents/${path}`, {
-      method: 'PUT', headers: { ...ghHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    });
-    if (res.ok) return next;
-    if ((res.status === 409 || res.status === 422) && attempt === 0) continue;
-    if (res.status === 401 || res.status === 403) throw new Error('GitHub rejected the token — check it in Settings.');
-    throw new Error(`GitHub said ${res.status}`);
+async function rpc(fn, args) {
+  if (!sbReady()) throw new Error("History storage isn't set up yet.");
+  const headers = { apikey: CONFIG.supabaseKey, 'Content-Type': 'application/json' };
+  if (CONFIG.supabaseKey.startsWith('eyJ')) headers.Authorization = `Bearer ${CONFIG.supabaseKey}`; // legacy anon keys
+  const res = await fetch(`${CONFIG.supabaseUrl.replace(/\/$/, '')}/rest/v1/rpc/${fn}`, {
+    method: 'POST', headers, body: JSON.stringify(args),
+  });
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    if (/wrong passcode/i.test(j.message || '')) throw new PasscodeError('That passcode didn\'t work for this list.');
+    throw new Error(`Couldn't reach the history service (${res.status}).`);
   }
-  throw new Error('Could not save, try again.');
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-const historyPath = () => `history/${state.list.id}.json`;
-
+let historyRun = 0;
 async function loadHistory() {
   const listId = state.list.id;
-  let data = [];
+  const run = ++historyRun;
+  const note = $('#histNote');
+  if (!sbReady()) { note.textContent = "History storage isn't connected yet."; return; }
+  if (!passcode()) { note.textContent = '🔒 Enter this list\'s passcode in ⚙️ Settings to see and log your dates.'; state.history = []; renderHistory(); render(); return; }
   try {
-    if (token()) data = (await ghRead(historyPath())).data;
-    else {
-      const res = await fetch(`${historyPath()}?t=${Date.now()}`, { cache: 'no-store' });
-      data = res.ok ? await res.json() : [];
-    }
-  } catch { data = store.get('historyCache:' + listId, []); }
-  if (state.list.id !== listId) return;
-  state.history = Array.isArray(data) ? data : [];
-  store.set('historyCache:' + listId, state.history);
+    const data = await rpc('get_history', { p_list: listId, p_code: passcode() });
+    if (run !== historyRun || state.list.id !== listId) return;
+    state.history = Array.isArray(data) ? data : [];
+    store.set('historyCache:' + listId, state.history);
+    note.textContent = '';
+  } catch (e) {
+    if (run !== historyRun) return;
+    if (e instanceof PasscodeError) { note.textContent = '🔒 The saved passcode no longer works. Update it in ⚙️ Settings.'; state.history = []; }
+    else { note.textContent = 'Offline: showing the last copy saved on this phone.'; state.history = store.get('historyCache:' + listId, []); }
+  }
   renderHistory();
   renderReminder();
   render();
 }
 
 function renderHistory() {
-  const list = [...state.history].sort((a, b) => b.date.localeCompare(a.date));
+  const list = [...state.history].sort((a, b) => b.date.localeCompare(a.date) || String(b.logged).localeCompare(String(a.logged)));
   $('#histCount').textContent = list.length ? `(${list.length})` : '';
   $('#historyList').replaceChildren(...list.map((h) => {
     const del = el('button', { className: 'del', type: 'button', textContent: '✕', title: 'Remove' });
@@ -399,9 +396,8 @@ function renderHistory() {
       ...(h.note ? [el('div', { className: 'note', textContent: h.note })] : []),
     );
   }));
-  if (!list.length) $('#historyList').replaceChildren(el('li', { className: 'm', textContent: 'No dates logged yet.' }));
+  if (!list.length && passcode()) $('#historyList').replaceChildren(el('li', { className: 'm', textContent: 'No dates logged yet.' }));
 
-  // idea picker in the log form
   const sel = $('#logIdea');
   const cur = sel.value;
   sel.replaceChildren(el('option', { value: '', textContent: 'Which date?' }),
@@ -425,16 +421,24 @@ function openLog(ideaName, date) {
   p.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function needPasscode(statusEl) {
+  statusEl.textContent = 'Enter this list\'s passcode in ⚙️ Settings first.';
+  document.querySelector('.settings').open = true;
+}
+
 async function saveLog() {
   const idea = $('#logIdea').value, date = $('#logDate').value;
   const status = $('#logStatus');
   if (!idea || !date) { status.textContent = 'Pick the date idea and the day you went.'; return; }
-  if (!token()) { status.textContent = 'Add a GitHub token in ⚙️ Settings first (one time per phone).'; document.querySelector('.settings').open = true; return; }
-  const entry = { idea, date, rating: state.stars || null, note: $('#logNote').value.trim(), logged: new Date().toISOString() };
+  if (!passcode()) { needPasscode(status); return; }
   const btn = $('#logSave');
   btn.disabled = true; status.textContent = 'Saving…';
   try {
-    state.history = await ghUpdate(historyPath(), (data) => [...data, entry], `Log date: ${idea} (${date})`);
+    const row = await rpc('add_history', {
+      p_list: state.list.id, p_code: passcode(), p_idea: idea, p_date: date,
+      p_rating: state.stars || null, p_note: $('#logNote').value.trim(),
+    });
+    state.history = [...state.history, row];
     store.set('historyCache:' + state.list.id, state.history);
     const planned = store.get('planned:' + state.list.id, null);
     if (planned && planned.idea === idea) store.del('planned:' + state.list.id);
@@ -442,17 +446,18 @@ async function saveLog() {
     $('#logNote').value = ''; setStars(0); $('#logIdea').value = '';
     renderHistory(); renderReminder(); render();
     confetti();
-  } catch (e) { status.textContent = e.message; }
+  } catch (e) {
+    status.textContent = e instanceof PasscodeError ? e.message + ' Check it in ⚙️ Settings.' : e.message + ' Your entry wasn\'t saved — try again when you\'re online.';
+  }
   btn.disabled = false;
 }
 
 async function removeHistory(h) {
-  if (!token()) { $('#logStatus').textContent = 'Add a GitHub token in ⚙️ Settings to edit history.'; return; }
+  if (!passcode()) { needPasscode($('#logStatus')); return; }
   if (!confirm(`Remove "${h.idea}" on ${prettyDate(h.date)} from your history?`)) return;
   try {
-    state.history = await ghUpdate(historyPath(),
-      (data) => data.filter((x) => !(x.idea === h.idea && x.date === h.date && x.logged === h.logged)),
-      `Remove date: ${h.idea} (${h.date})`);
+    await rpc('delete_history', { p_list: state.list.id, p_code: passcode(), p_id: h.id });
+    state.history = state.history.filter((x) => x.id !== h.id);
     store.set('historyCache:' + state.list.id, state.history);
     renderHistory(); render();
   } catch (e) { $('#logStatus').textContent = e.message; }
@@ -733,6 +738,8 @@ async function loadList(id) {
   const url = new URL(location.href); url.searchParams.set('list', list.id); history.replaceState(null, '', url);
   $('#listSelect').value = list.id;
   $('#editLink').href = `https://github.com/${CONFIG.repo}/edit/${CONFIG.branch}/lists/${list.id}.yaml`;
+  $('#codeFor').textContent = list.name || list.id;
+  $('#codeStatus').textContent = store.get('code:' + list.id, '') ? '✓ Unlocked on this phone.' : '';
 
   state.ideas = []; state.history = store.get('historyCache:' + list.id, []);
   state.skipped.clear(); state.wheelKey = ''; state.wheel = [];
@@ -781,21 +788,20 @@ function bindHistoryAndSettings() {
   $('#logDate').value = ymd(new Date());
   $('#logSave').addEventListener('click', saveLog);
 
-  $('#token').value = token();
-  $('#tokenSave').addEventListener('click', async () => {
-    const t = $('#token').value.trim();
-    const st = $('#tokenStatus');
-    if (!t) { store.del('ghToken'); st.textContent = 'Token removed from this phone.'; return; }
-    store.set('ghToken', t);
+  $('#codeSave').addEventListener('click', async () => {
+    const code = $('#code').value.trim();
+    const st = $('#codeStatus');
+    const id = state.list.id;
+    if (!code) { store.del('code:' + id); st.textContent = 'Passcode removed from this phone.'; loadHistory(); return; }
     st.textContent = 'Checking…';
     try {
-      const res = await fetch(`${GH}/repos/${CONFIG.repo}`, { headers: ghHeaders() });
-      const j = res.ok ? await res.json() : null;
-      if (j?.permissions?.push) { st.textContent = '✓ Token works. You can save dates from this phone.'; loadHistory(); }
-      else if (res.ok) st.textContent = "This token can see the repo but can't write. Give it Contents → Read and write.";
-      else st.textContent = `GitHub rejected that token (${res.status}).`;
-    } catch { st.textContent = "Couldn't reach GitHub. Saved anyway, and it'll be tried when you log a date."; }
+      const ok = await rpc('check_code', { p_list: id, p_code: code });
+      if (ok) { store.set('code:' + id, code); st.textContent = '✓ Unlocked. This phone can now see and log dates for this list.'; $('#code').value = ''; loadHistory(); }
+      else st.textContent = "That passcode doesn't match this list.";
+    } catch (e) { st.textContent = e.message; }
   });
+  // Pick up dates the other phone logged when this app comes back to the foreground.
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.list) loadHistory(); });
 }
 
 async function init() {
