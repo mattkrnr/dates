@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache when there's no connection.
 // Same-origin files are network-first (so list edits show up right away), cached as a fallback.
-const CACHE = 'whimsy-v2';
+const CACHE = 'whimsy-v3';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'lists/lists.yaml',
   'https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js'];
 

@@ -11,8 +11,8 @@ const CONFIG = {
   rainPct: 50, coldF: 40, hotF: 92,
   // Supabase project for date history. The key below is the public "publishable"/anon key,
   // which is safe to ship: the tables are locked and every function checks the list passcode.
-  supabaseUrl: '',
-  supabaseKey: '',
+  supabaseUrl: 'https://bkhhcsmbpnlgsnbzblov.supabase.co',
+  supabaseKey: 'sb_publishable_JdJa4qMmvvrD96M3fDvbQA_WGQSvzfu',
 };
 
 const SEASONS = ['winter', 'spring', 'summer', 'fall'];
