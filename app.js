@@ -986,7 +986,7 @@ async function searchPlaces() {
         $('#eAddress').value = addr;
         editor.coords = { lat: Number(r.lat), lng: Number(r.lon) };
         if (!$('#eName').value.trim()) $('#eName').value = name;
-        box.replaceChildren(el('li', { className: 'hint', textContent: `📍 Pinned on the map. Add the street number above if you like.` }));
+        box.replaceChildren(el('li', { className: 'hint', textContent: `📍 Pinned on the map. You can fix up the address below if needed.` }));
       });
       return el('li', {}, b);
     }));
