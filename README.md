@@ -12,39 +12,21 @@ Live at: https://mattkrnr.github.io/dates/
 - **Our dates:** log the dates you went on, with a 1–5 star rating and notes. History is private to each list, behind a passcode. Ideas you did in the last 30 days sit out of the wheel for a while.
 - **Phone app:** in Safari, tap Share → Add to Home Screen.
 
-## Your own list
+## Adding ideas
 
-Each person or couple gets their own file in `lists/`. To add one:
+Tap **＋ Add a date idea** at the bottom of the app (or ✎ next to any idea to edit it). Search for a place and the address fills in, then tap chips for when, daylight, season, budget, energy and outdoors.
 
-1. Add an entry to `lists/lists.yaml`:
-   ```yaml
-   - id: sam
-     name: Sam & Alex
-     zip: "08540"
-   ```
-2. Create `lists/sam.yaml`. Copy `lists/matt.yaml` for the format.
-3. Send them `https://mattkrnr.github.io/dates/?list=sam`
+- **Anyone with the link can spin.** Adding, editing and deleting ideas needs the list's passcode, entered once per phone.
+- **Deleted ideas** sit in "Recently deleted" (under "What's on the wheel") for 30 days and can be restored.
+- Links: `https://mattkrnr.github.io/dates/?list=matt`, `?list=matt-allie`
 
-## Idea format
+Ideas live in Supabase (`whimsy_ideas`); they used to be YAML files in `lists/`, which are in this repo's history if ever needed.
 
-```yaml
-- name: Ice skating at Mercer County Park
-  address: 1638 Old Trenton Rd, West Windsor, NJ 08550   # or: home
-  when: either          # weeknight | weekend | either
-  daylight: false       # true = needs daylight
-  season: winter        # any | winter | summer | spring | fall, or a list: [spring, summer]
-  outdoor: true         # gets a weather heads-up
-  budget: "$"           # "$" | "$$" | "$$$"
-  energy: active        # chill | medium | active
-  notes: optional
-  link: https://optional.example
-```
-
-Addresses are turned into map coordinates with OpenStreetMap's free geocoder, and each browser caches the results. Add `lat:` and `lng:` to pin an idea exactly.
+**New list for a friend:** add a row to `whimsy_lists` and set its passcode (see `supabase/set-passcode.sql`). Ask Claude to do it.
 
 ## Saving "Our dates"
 
-Date history is stored in Supabase (free tier), in the **Shared** project: the project for apps that you, your partner and friends use. Every table and function there is prefixed with its app's name (`whimsy_…`, `flashcards_…`). Each list is protected by its own passcode:
+Ideas and date history are stored in Supabase (free tier), in the **Shared** project: the project for apps that you, your partner and friends use. Every table and function there is prefixed with its app's name (`whimsy_…`, `flashcards_…`). Each list is protected by its own passcode:
 
 - The tables are locked down. The app's public key can only call the functions in `supabase/setup.sql`, and each one checks the list's passcode first.
 - Passcodes are stored as salted hashes, never in plain text.
@@ -53,7 +35,7 @@ Date history is stored in Supabase (free tier), in the **Shared** project: the p
 **Setup**
 
 1. Create a free project at supabase.com.
-2. In SQL Editor, run `supabase/setup.sql`. (`supabase/migrate-to-shared-layout.sql` is the one-time upgrade for the project created before the prefixes.)
+2. In SQL Editor, run `supabase/setup.sql`, then `supabase/ideas.sql`. (`supabase/migrate-to-shared-layout.sql` was a one-time upgrade for the project created before the prefixes.)
 3. For each list, run `supabase/set-passcode.sql` with that list's id and a passcode you choose.
 4. Put the Project URL and publishable key in `CONFIG` at the top of `app.js`.
 

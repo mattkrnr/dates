@@ -15,7 +15,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -112,7 +111,11 @@
     <details class="panel idea-list">
       <summary>What's on the wheel <span id="matchCount" class="muted"></span></summary>
       <ul id="ideaList" class="rows"></ul>
-      <p class="hint">The wheel holds up to 12 ideas, picked at random if more match. Dates you did in the last 30 days sit out unless there'd be fewer than 3 left.</p>
+      <p class="hint">The wheel holds up to 12 ideas, picked at random if more match. Dates you did in the last 30 days sit out unless there'd be fewer than 3 left. Tap ✎ to edit an idea.</p>
+      <details id="deletedPanel" class="deleted">
+        <summary>🗑 Recently deleted</summary>
+        <ul id="deletedList" class="rows"></ul>
+      </details>
     </details>
 
     <details class="panel history" id="historyPanel">
@@ -146,7 +149,7 @@
   </main>
 
   <footer>
-    <a id="editLink" target="_blank" rel="noopener">✏️ Add or edit ideas in this list</a>
+    <button id="addIdea" type="button" class="add-idea">＋ Add a date idea</button>
   </footer>
 
   <dialog id="result">
@@ -168,6 +171,88 @@
     </div>
   </dialog>
 
+  <dialog id="editor">
+    <form id="editorForm" class="editor-card" onsubmit="return false">
+      <button id="eClose" class="close-x" type="button" aria-label="Close">&times;</button>
+      <h2 id="eTitle">New date idea</h2>
+
+      <div id="eLock" class="lock" hidden>
+        <p>🔒 Enter this list's passcode to add or edit ideas. You only need to do this once on this phone.</p>
+        <input id="eCode" type="password" autocomplete="off" placeholder="List passcode">
+      </div>
+
+      <label class="field"><span class="label">What's the date?</span>
+        <input id="eName" maxlength="120" placeholder="e.g. Sunset picnic at Baldpate" autocomplete="off">
+      </label>
+
+      <div class="field"><span class="label">Where</span>
+        <div class="search-row">
+          <input id="ePlaceQ" placeholder="Search a place, e.g. Terhune Orchards" autocomplete="off" enterkeyhint="search">
+          <button id="ePlaceGo" type="button">Search</button>
+        </div>
+        <ul id="ePlaceResults" class="place-results"></ul>
+        <input id="eAddress" maxlength="300" placeholder="Street, town, state ZIP" autocomplete="off">
+        <div class="chips"><label><input type="checkbox" id="eHome"><span>🏠 At home</span></label></div>
+      </div>
+
+      <div class="field"><span class="label">When</span>
+        <div class="chips">
+          <label><input type="radio" name="eWhen" value="either"><span>Any night</span></label>
+          <label><input type="radio" name="eWhen" value="weeknight"><span>Weeknight</span></label>
+          <label><input type="radio" name="eWhen" value="weekend"><span>Weekend</span></label>
+        </div>
+      </div>
+
+      <div class="field"><span class="label">Good to know</span>
+        <div class="chips">
+          <label><input type="checkbox" id="eDaylight"><span>☀️ Needs daylight</span></label>
+          <label><input type="checkbox" id="eOutdoor"><span>🌳 Outdoors</span></label>
+        </div>
+      </div>
+
+      <div class="field"><span class="label">Season <span class="muted">(none = all year)</span></span>
+        <div class="chips">
+          <label><input type="checkbox" name="eSeason" value="winter"><span>❄️ Winter</span></label>
+          <label><input type="checkbox" name="eSeason" value="spring"><span>🌷 Spring</span></label>
+          <label><input type="checkbox" name="eSeason" value="summer"><span>☀️ Summer</span></label>
+          <label><input type="checkbox" name="eSeason" value="fall"><span>🍂 Fall</span></label>
+        </div>
+      </div>
+
+      <div class="field"><span class="label">Budget</span>
+        <div class="chips">
+          <label><input type="radio" name="eBudget" value=""><span>—</span></label>
+          <label><input type="radio" name="eBudget" value="1"><span>$</span></label>
+          <label><input type="radio" name="eBudget" value="2"><span>$$</span></label>
+          <label><input type="radio" name="eBudget" value="3"><span>$$$</span></label>
+        </div>
+      </div>
+
+      <div class="field"><span class="label">Energy</span>
+        <div class="chips">
+          <label><input type="radio" name="eEnergy" value=""><span>—</span></label>
+          <label><input type="radio" name="eEnergy" value="chill"><span>🛋️ Chill</span></label>
+          <label><input type="radio" name="eEnergy" value="medium"><span>🚶 Medium</span></label>
+          <label><input type="radio" name="eEnergy" value="active"><span>🏃 Active</span></label>
+        </div>
+      </div>
+
+      <label class="field"><span class="label">Notes <span class="muted">(optional)</span></span>
+        <textarea id="eNotes" rows="2" maxlength="1000" placeholder="Hours, what to order, tips…"></textarea>
+      </label>
+      <label class="field"><span class="label">Website <span class="muted">(optional)</span></span>
+        <input id="eLink" type="url" maxlength="500" placeholder="https://" autocomplete="off">
+      </label>
+
+      <p id="eStatus" class="hint" aria-live="polite"></p>
+      <div class="actions">
+        <button id="eSave" class="primary" type="button">Save idea</button>
+        <button id="eDelete" class="ghost danger" type="button" hidden>Delete idea</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
   <canvas id="confetti" aria-hidden="true"></canvas>
 </body>
 </html>

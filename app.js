@@ -101,7 +101,7 @@ function isHome(addr) { return !addr || String(addr).trim().toLowerCase() === 'h
 function el(tag, props = {}, ...kids) { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; }
 function starStr(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
-function normalize(raw, i) {
+function normalize(raw, id) {
   const when = String(raw.when || 'either').toLowerCase().replace(/s$/, '');
   let s = raw.season ?? 'any';
   if (!Array.isArray(s)) s = String(s).split(/[,/ ]+/);
@@ -116,7 +116,8 @@ function normalize(raw, i) {
   }
   const energy = String(raw.energy || '').toLowerCase();
   return {
-    id: i,
+    id,
+    row: raw.row || null,
     name: String(raw.name || 'Untitled date'),
     address: isHome(raw.address) ? 'home' : String(raw.address),
     when: when === 'weekend' || when === 'weeknight' ? when : 'either',
@@ -126,10 +127,30 @@ function normalize(raw, i) {
     energy: ENERGY[energy] ? energy : null,
     seasons,
     notes: raw.notes ? String(raw.notes) : '',
-    link: raw.link ? String(raw.link) : '',
+    link: raw.link && /^https?:\/\//i.test(String(raw.link)) ? String(raw.link) : '',
     coords: num(raw.lat) != null && num(raw.lng) != null ? { lat: num(raw.lat), lng: num(raw.lng) } : null,
     geo: 'pending',
     dist: null,
+  };
+}
+
+// A row from Supabase (whimsy_ideas) → the app's idea shape.
+function fromRow(row) {
+  return normalize({
+    row, name: row.name, address: row.address, when: row.day_type, daylight: row.daylight, outdoor: row.outdoor,
+    season: row.seasons && row.seasons.length ? row.seasons : 'any', budget: row.budget, energy: row.energy,
+    notes: row.notes, link: row.link, lat: row.lat, lng: row.lng,
+  }, row.id);
+}
+
+// The app's idea shape → what whimsy_save_idea expects.
+function toPayload(idea, extra = {}) {
+  return {
+    id: idea.id || null, name: idea.name, address: idea.address, day_type: idea.when,
+    daylight: idea.daylight, outdoor: idea.outdoor,
+    seasons: idea.seasons.size === 4 ? [] : [...idea.seasons],
+    budget: idea.budget, energy: idea.energy, notes: idea.notes, link: idea.link || null,
+    lat: idea.coords?.lat ?? null, lng: idea.coords?.lng ?? null, ...extra,
   };
 }
 
@@ -138,14 +159,37 @@ const GEO_KEY = 'geocache-v1';
 const geoCache = store.get(GEO_KEY, {});
 let lastGeoCall = 0;
 
-async function nominatim(params) {
-  const wait = lastGeoCall + 1100 - Date.now();
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+// OpenStreetMap allows 1 request/second. Background lookups wait in a queue;
+// a search the person typed (urgent) skips the queue and only waits for the 1-second gap.
+let geoQueue = Promise.resolve();
+let urgentGeo = 0;
+async function geoFetch(params) {
+  for (;;) {
+    const wait = lastGeoCall + 1100 - Date.now();
+    if (wait <= 0) break;
+    await new Promise((r) => setTimeout(r, wait));
+  }
   lastGeoCall = Date.now();
   const url = 'https://nominatim.openstreetmap.org/search?' + new URLSearchParams({ format: 'json', limit: '1', countrycodes: 'us', ...params });
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error('geocoder ' + res.status);
-  const data = await res.json();
+  return res.json();
+}
+function nominatimAll(params, { urgent = false } = {}) {
+  if (urgent) {
+    urgentGeo++;
+    return geoFetch(params).finally(() => { urgentGeo--; });
+  }
+  const run = geoQueue.then(async () => {
+    while (urgentGeo > 0) await new Promise((r) => setTimeout(r, 200)); // let searches go first
+    return geoFetch(params);
+  });
+  geoQueue = run.catch(() => {});
+  return run;
+}
+
+async function nominatim(params) {
+  const data = await nominatimAll(params);
   return data[0] ? { lat: Number(data[0].lat), lng: Number(data[0].lon) } : null;
 }
 
@@ -184,7 +228,12 @@ async function geocodeIdeas() {
     setStatus(`Finding ${left} place${left === 1 ? '' : 's'} on the map…`);
     try {
       const hit = await geocodeAddress(idea.address);
-      if (hit) { idea.coords = { lat: hit.lat, lng: hit.lng }; idea.geo = hit.approx ? 'approx' : 'ok'; }
+      if (hit) {
+        idea.coords = { lat: hit.lat, lng: hit.lng }; idea.geo = hit.approx ? 'approx' : 'ok';
+        if (!hit.approx && passcode() && idea.row) {
+          rpc('whimsy_save_idea', { p_list: state.list.id, p_code: passcode(), p_idea: toPayload(idea) }).catch(() => {});
+        }
+      }
       else idea.geo = 'failed';
     } catch { idea.geo = 'failed'; }
     left--;
@@ -533,8 +582,10 @@ function render() {
     const h = lastDone(idea);
     const log = el('button', { className: 'log-btn', type: 'button', textContent: '✓ Did it' });
     log.addEventListener('click', () => openLog(idea.name, state.plan <= ymd(new Date()) ? state.plan : ymd(new Date())));
+    const edit = el('button', { className: 'log-btn', type: 'button', textContent: '✎', title: 'Edit idea', ariaLabel: `Edit ${idea.name}` });
+    edit.addEventListener('click', () => openEditor(idea));
     const meta = el('div', { className: 'm', textContent: describe(idea).join(' · ') });
-    const li = el('li', { className: pool.has(idea.id) ? '' : 'off' }, log, el('div', { className: 'n', textContent: idea.name }), meta);
+    const li = el('li', { className: pool.has(idea.id) ? '' : 'off' }, el('span', { className: 'row-actions' }, edit, log), el('div', { className: 'n', textContent: idea.name }), meta);
     for (const w of weatherWarnings(idea)) li.append(' ', el('span', { className: 'warn', textContent: w }));
     if (h) li.append(el('div', { className: 'm', textContent: `Last went ${prettyDate(h.date, { month: 'short', day: 'numeric', year: 'numeric' })}${h.rating ? ' ' + starStr(h.rating) : ''}${isResting(idea) && !pool.has(idea.id) ? ' · resting' : ''}` }));
     return li;
@@ -710,10 +761,46 @@ function confetti() {
 }
 
 // ---------- loading ----------
-async function loadYaml(path) {
-  const res = await fetch(path, { cache: 'no-cache' });
-  if (!res.ok) throw new Error(`Couldn't load ${path} (${res.status})`);
-  return jsyaml.load(await res.text());
+async function fetchLists() {
+  try {
+    const lists = await rpc('whimsy_get_lists', {});
+    store.set('listsCache', lists);
+    return lists;
+  } catch (e) {
+    const cached = store.get('listsCache', null);
+    if (cached) return cached;
+    throw e;
+  }
+}
+
+// Fetch a list's ideas (cached on the phone for offline use). Keeps known coordinates.
+async function fetchIdeas(listId) {
+  let rows, offline = false;
+  try {
+    rows = await rpc('whimsy_get_ideas', { p_list: listId });
+    store.set('ideasCache:' + listId, rows);
+  } catch (e) {
+    rows = store.get('ideasCache:' + listId, null);
+    if (!rows) throw e;
+    offline = true;
+  }
+  const old = new Map(state.ideas.map((i) => [i.id, i]));
+  const ideas = rows.map((row) => {
+    const idea = fromRow(row);
+    const prev = old.get(idea.id);
+    if (!idea.coords && prev?.coords && prev.address === idea.address) { idea.coords = prev.coords; idea.geo = prev.geo; }
+    return idea;
+  });
+  return { ideas, offline };
+}
+
+async function refreshIdeas() {
+  if (!state.list) return;
+  try {
+    const { ideas } = await fetchIdeas(state.list.id);
+    state.ideas = ideas;
+    updateDistances(); renderHistory(); render(); geocodeIdeas();
+  } catch { /* keep what we have */ }
 }
 
 async function setOrigin(zip) {
@@ -737,7 +824,6 @@ async function loadList(id) {
   store.set('lastList', list.id);
   const url = new URL(location.href); url.searchParams.set('list', list.id); history.replaceState(null, '', url);
   $('#listSelect').value = list.id;
-  $('#editLink').href = `https://github.com/${CONFIG.repo}/edit/${CONFIG.branch}/lists/${list.id}.yaml`;
   $('#codeFor').textContent = list.name || list.id;
   $('#codeStatus').textContent = store.get('code:' + list.id, '') ? '✓ Unlocked on this phone.' : '';
 
@@ -745,12 +831,13 @@ async function loadList(id) {
   state.skipped.clear(); state.wheelKey = ''; state.wheel = [];
   drawWheel();
   setStatus('Loading ideas…');
-  let raw;
-  try { raw = await loadYaml(`lists/${list.id}.yaml`); }
-  catch (e) { setStatus(e.message); return; }
-  const items = Array.isArray(raw) ? raw : raw?.ideas || [];
-  state.ideas = items.map(normalize);
-  setStatus('');
+  try {
+    const { ideas, offline } = await fetchIdeas(list.id);
+    if (state.list.id !== list.id) return;
+    state.ideas = ideas;
+    setStatus(offline ? 'Offline: showing the ideas saved on this phone.' : '');
+  } catch (e) { setStatus("Couldn't load ideas. Pull down to try again."); return; }
+  $('#deletedPanel').open = false;
   renderHistory();
   renderReminder();
 
@@ -796,12 +883,12 @@ function bindHistoryAndSettings() {
     st.textContent = 'Checking…';
     try {
       const ok = await rpc('whimsy_check_code', { p_list: id, p_code: code });
-      if (ok) { store.set('code:' + id, code); st.textContent = '✓ Unlocked. This phone can now see and log dates for this list.'; $('#code').value = ''; loadHistory(); }
+      if (ok) { store.set('code:' + id, code); st.textContent = '✓ Unlocked. This phone can now add ideas and log dates for this list.'; $('#code').value = ''; loadHistory(); }
       else st.textContent = "That passcode doesn't match this list.";
     } catch (e) { st.textContent = e.message; }
   });
   // Pick up dates the other phone logged when this app comes back to the foreground.
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.list) loadHistory(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && state.list) { loadHistory(); refreshIdeas(); } });
 }
 
 async function init() {
@@ -813,8 +900,9 @@ async function init() {
   sizeCanvas();
   addEventListener('resize', sizeCanvas);
   $('#spinBtn').addEventListener('click', spin);
+  bindEditor();
   $('#rYes').addEventListener('click', () => {
-    const idea = state.ideas.find((i) => i.id === Number($('#result').dataset.id));
+    const idea = state.ideas.find((i) => i.id === $('#result').dataset.id);
     if (idea) store.set('planned:' + state.list.id, { idea: idea.name, date: state.plan });
     $('#result').close();
     renderReminder();
@@ -823,7 +911,7 @@ async function init() {
   $('#rClose').addEventListener('click', () => $('#result').close());
   $('#result').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('#rNo').addEventListener('click', () => {
-    state.skipped.add(Number($('#result').dataset.id));
+    state.skipped.add($('#result').dataset.id);
     $('#result').close();
     render();
     buildWheel(state.ideas.filter(matches), true);
@@ -831,10 +919,10 @@ async function init() {
   });
 
   try {
-    const lists = await loadYaml('lists/lists.yaml');
+    const lists = await fetchLists();
     state.lists = (Array.isArray(lists) ? lists : []).filter((l) => l && l.id);
-  } catch (e) { setStatus(e.message); return; }
-  if (!state.lists.length) { setStatus('No lists yet — add one to lists/lists.yaml.'); return; }
+  } catch (e) { setStatus("Couldn't load your lists. Pull down to try again."); return; }
+  if (!state.lists.length) { setStatus('No lists yet.'); return; }
 
   const sel = $('#listSelect');
   sel.replaceChildren(...state.lists.map((l) => el('option', { value: l.id, textContent: l.name || l.id })));
@@ -857,6 +945,205 @@ async function init() {
   const link = document.getElementById('homeBack');
   if (fromHome && link) link.hidden = false;
 })();
+
+// ---------- add / edit ideas ----------
+const editor = { idea: null, coords: null };
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
+}
+
+function fmtPlace(r) {
+  const a = r.address || {};
+  const street = [a.house_number, a.road].filter(Boolean).join(' ');
+  const city = a.city || a.town || a.village || a.hamlet || a.suburb || a.municipality || '';
+  const st = (a['ISO3166-2-lvl4'] || '').replace(/^US-/, '') || a.state || '';
+  const parts = [street, city, [st, a.postcode].filter(Boolean).join(' ')].filter(Boolean);
+  return parts.length >= 2 ? parts.join(', ') : r.display_name;
+}
+
+async function searchPlaces() {
+  const q = $('#ePlaceQ').value.trim();
+  const box = $('#ePlaceResults');
+  if (q.length < 3) { box.replaceChildren(el('li', { className: 'hint', textContent: 'Type at least 3 letters.' })); return; }
+  box.replaceChildren(el('li', { className: 'hint', textContent: 'Searching…' }));
+  const params = { q, addressdetails: '1', limit: '5' };
+  const c = state.origin || DEFAULT_COORDS;
+  params.viewbox = [c.lng - 0.8, c.lat + 0.8, c.lng + 0.8, c.lat - 0.8].join(','); // prefer nearby results
+  try {
+    const results = await nominatimAll(params, { urgent: true });
+    if (!results.length) { box.replaceChildren(el('li', { className: 'hint', textContent: 'No matches. Try adding the town, or type the address below.' })); return; }
+    box.replaceChildren(...results.map((r) => {
+      const name = r.name || r.display_name.split(',')[0];
+      const addr = fmtPlace(r);
+      const b = el('button', { type: 'button' }, el('b', { textContent: name }), el('span', { textContent: addr }));
+      b.addEventListener('click', () => {
+        $('#eHome').checked = false; syncHome();
+        $('#eAddress').value = addr;
+        editor.coords = { lat: Number(r.lat), lng: Number(r.lon) };
+        if (!$('#eName').value.trim()) $('#eName').value = name;
+        box.replaceChildren(el('li', { className: 'hint', textContent: `📍 ${addr}` }));
+      });
+      return el('li', {}, b);
+    }));
+  } catch { box.replaceChildren(el('li', { className: 'hint', textContent: "Couldn't search right now. You can type the address below." })); }
+}
+
+function syncHome() {
+  const home = $('#eHome').checked;
+  $('#eAddress').disabled = home;
+  if (home) { $('#eAddress').value = ''; editor.coords = null; }
+  $('#eAddress').placeholder = home ? 'At home' : 'Street, town, state ZIP';
+}
+
+function setRadio(name, value) {
+  document.querySelectorAll(`#editorForm input[name=${name}]`).forEach((r) => { r.checked = r.value === String(value ?? ''); });
+}
+
+function openEditor(idea = null) {
+  editor.idea = idea;
+  editor.coords = idea?.coords && idea.geo === 'ok' ? idea.coords : null;
+  $('#eTitle').textContent = idea ? 'Edit date idea' : 'New date idea';
+  $('#eName').value = idea?.name || '';
+  $('#eHome').checked = idea ? idea.address === 'home' : false;
+  $('#eAddress').value = idea && idea.address !== 'home' ? idea.address : '';
+  syncHome();
+  $('#ePlaceQ').value = ''; $('#ePlaceResults').replaceChildren();
+  setRadio('eWhen', idea?.when || 'either');
+  $('#eDaylight').checked = !!idea?.daylight;
+  $('#eOutdoor').checked = !!idea?.outdoor;
+  document.querySelectorAll('#editorForm input[name=eSeason]').forEach((c) => { c.checked = !!idea && idea.seasons.size < 4 && idea.seasons.has(c.value); });
+  setRadio('eBudget', idea?.budget || '');
+  setRadio('eEnergy', idea?.energy || '');
+  $('#eNotes').value = idea?.notes || '';
+  $('#eLink').value = idea?.link || '';
+  $('#eDelete').hidden = !idea;
+  $('#eLock').hidden = !!passcode();
+  $('#eCode').value = '';
+  $('#eStatus').textContent = '';
+  $('#editor').showModal();
+  if (!idea) setTimeout(() => $('#eName').focus(), 50);
+}
+
+async function ensureUnlocked(statusEl) {
+  if (passcode()) return passcode();
+  const code = $('#eCode').value.trim();
+  if (!code) { statusEl.textContent = "Enter this list's passcode first."; $('#eCode').focus(); return null; }
+  const ok = await rpc('whimsy_check_code', { p_list: state.list.id, p_code: code });
+  if (!ok) { statusEl.textContent = "That passcode doesn't match this list."; return null; }
+  store.set('code:' + state.list.id, code);
+  $('#eLock').hidden = true;
+  $('#codeStatus').textContent = '✓ Unlocked on this phone.';
+  loadHistory();
+  return code;
+}
+
+async function saveIdea() {
+  const st = $('#eStatus');
+  const name = $('#eName').value.trim();
+  const home = $('#eHome').checked;
+  const address = home ? 'home' : $('#eAddress').value.trim();
+  const link = $('#eLink').value.trim();
+  if (!name) { st.textContent = 'Give the date a name.'; $('#eName').focus(); return; }
+  if (!home && !address) { st.textContent = 'Add a place: search for it, type an address, or tick "At home".'; return; }
+  if (link && !/^https?:\/\//i.test(link)) { st.textContent = 'The website should start with https://'; return; }
+  const btn = $('#eSave');
+  btn.disabled = true; st.textContent = 'Saving…';
+  try {
+    const code = await ensureUnlocked(st);
+    if (!code) return;
+    const prev = editor.idea;
+    const payload = {
+      id: prev?.id || null, name, address,
+      day_type: $('#editorForm').elements.eWhen.value || 'either',
+      daylight: $('#eDaylight').checked, outdoor: $('#eOutdoor').checked,
+      seasons: [...document.querySelectorAll('#editorForm input[name=eSeason]:checked')].map((c) => c.value),
+      budget: $('#editorForm').elements.eBudget.value || null,
+      energy: $('#editorForm').elements.eEnergy.value || null,
+      notes: $('#eNotes').value.trim(), link: link || null,
+      lat: home ? null : editor.coords?.lat ?? null, lng: home ? null : editor.coords?.lng ?? null,
+    };
+    // If the address was typed by hand (no search pick), let the app look it up again.
+    if (prev && prev.address !== address && !editor.coords) { payload.lat = null; payload.lng = null; }
+    const row = await rpc('whimsy_save_idea', { p_list: state.list.id, p_code: code, p_idea: payload });
+    const saved = fromRow(row);
+    if (prev) {
+      if (prev.name !== saved.name) state.history.forEach((h) => { if (h.idea === prev.name) h.idea = saved.name; });
+      state.ideas = state.ideas.map((i) => (i.id === saved.id ? saved : i));
+    } else {
+      state.ideas = [...state.ideas, saved];
+    }
+    store.set('ideasCache:' + state.list.id, state.ideas.map((i) => i.row).filter(Boolean));
+    state.wheelKey = '';
+    updateDistances(); renderHistory(); render();
+    $('#editor').close();
+    toast(prev ? 'Saved ✓' : `Added "${saved.name}" to the wheel 🎉`);
+    if (!saved.coords && saved.address !== 'home') geocodeIdeas();
+  } catch (e) {
+    st.textContent = e instanceof PasscodeError ? e.message : `Couldn't save: ${e.message}`;
+  } finally { btn.disabled = false; }
+}
+
+async function deleteIdea() {
+  const idea = editor.idea;
+  if (!idea) return;
+  const st = $('#eStatus');
+  const code = await ensureUnlocked(st).catch((e) => { st.textContent = e.message; return null; });
+  if (!code) return;
+  if (!confirm(`Delete "${idea.name}"? You can restore it from "Recently deleted" for 30 days.`)) return;
+  try {
+    await rpc('whimsy_delete_idea', { p_list: state.list.id, p_code: code, p_id: idea.id });
+    state.ideas = state.ideas.filter((i) => i.id !== idea.id);
+    store.set('ideasCache:' + state.list.id, state.ideas.map((i) => i.row).filter(Boolean));
+    state.wheelKey = '';
+    renderHistory(); render();
+    $('#editor').close();
+    toast('Moved to "Recently deleted"');
+    if ($('#deletedPanel').open) loadDeleted();
+  } catch (e) { st.textContent = e.message; }
+}
+
+async function loadDeleted() {
+  const ul = $('#deletedList');
+  if (!passcode()) { ul.replaceChildren(el('li', { className: 'm', textContent: "🔒 Unlock this list in ⚙️ Settings to see deleted ideas." })); return; }
+  ul.replaceChildren(el('li', { className: 'm', textContent: 'Loading…' }));
+  try {
+    const rows = await rpc('whimsy_get_deleted_ideas', { p_list: state.list.id, p_code: passcode() });
+    if (!rows.length) { ul.replaceChildren(el('li', { className: 'm', textContent: 'Nothing deleted in the last 30 days.' })); return; }
+    ul.replaceChildren(...rows.map((row) => {
+      const btn = el('button', { className: 'log-btn', type: 'button', textContent: '↩ Restore' });
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try {
+          const back = await rpc('whimsy_restore_idea', { p_list: state.list.id, p_code: passcode(), p_id: row.id });
+          if (back) state.ideas = [...state.ideas, fromRow(back)];
+          store.set('ideasCache:' + state.list.id, state.ideas.map((i) => i.row).filter(Boolean));
+          state.wheelKey = '';
+          updateDistances(); renderHistory(); render(); geocodeIdeas();
+          toast(`Restored "${row.name}"`);
+          loadDeleted();
+        } catch (e) { btn.disabled = false; toast(e.message); }
+      });
+      const days = Math.max(0, 30 - Math.floor((Date.now() - new Date(row.deleted_at)) / 86400000));
+      return el('li', {}, el('span', { className: 'row-actions' }, btn), el('div', { className: 'n', textContent: row.name }), el('div', { className: 'm', textContent: `Deleted ${new Date(row.deleted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · gone for good in ${days} day${days === 1 ? '' : 's'}` }));
+    }));
+  } catch (e) { ul.replaceChildren(el('li', { className: 'm', textContent: e.message })); }
+}
+
+function bindEditor() {
+  $('#addIdea').addEventListener('click', () => openEditor());
+  $('#eClose').addEventListener('click', () => $('#editor').close());
+  $('#eSave').addEventListener('click', saveIdea);
+  $('#eDelete').addEventListener('click', deleteIdea);
+  $('#ePlaceGo').addEventListener('click', searchPlaces);
+  $('#ePlaceQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchPlaces(); } });
+  $('#eHome').addEventListener('change', syncHome);
+  $('#eAddress').addEventListener('input', () => { editor.coords = null; });
+  $('#deletedPanel').addEventListener('toggle', () => { if ($('#deletedPanel').open) loadDeleted(); });
+}
 
 // ---------- app updates + pull to refresh ----------
 if ('serviceWorker' in navigator) {
@@ -886,7 +1173,7 @@ async function hardRefresh() {
   const bar = $('#ptr'), label = $('#ptrText');
   const THRESHOLD = 80;
   let startY = null, pulling = false, dist = 0;
-  const blocked = () => state.spinning || $('#result').open || window.scrollY > 0;
+  const blocked = () => state.spinning || $('#result').open || $('#editor').open || window.scrollY > 0;
   const show = (d) => {
     const y = Math.min(d, 120) - 60;
     bar.style.transform = `translate(-50%, ${y}px)`;

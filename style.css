@@ -105,7 +105,7 @@ details.panel > summary { font-weight: 700; cursor: pointer; }
 .filter-row { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
 .label { font-weight: 700; font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.chips input[type=radio] { position: absolute; opacity: 0; pointer-events: none; }
+.chips input[type=radio], .chips input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
 .chips span {
   display: inline-block; padding: 7px 12px; border-radius: 999px; background: var(--chip);
   font-size: .9rem; cursor: pointer; user-select: none; transition: background .15s, color .15s;
@@ -128,7 +128,8 @@ details.panel > summary { font-weight: 700; cursor: pointer; }
 .rows li.off { opacity: .45; }
 .rows .warn { display: inline-block; background: var(--warn); border-radius: 6px; padding: 0 5px; font-size: .8rem; color: var(--ink); }
 .rows .del { position: absolute; right: 0; top: 8px; border: 0; background: none; color: var(--muted); font-size: 1rem; cursor: pointer; }
-.rows .log-btn { float: right; border: 0; background: var(--chip); border-radius: 999px; padding: 3px 9px; font: 600 .78rem var(--body); cursor: pointer; }
+.rows .row-actions { float: right; display: flex; gap: 6px; margin-left: 8px; }
+.rows .log-btn { border: 0; background: var(--chip); border-radius: 999px; padding: 3px 9px; font: 600 .78rem var(--body); cursor: pointer; }
 
 /* Log form */
 .log-form { display: grid; gap: 8px; margin-top: 10px; }
@@ -196,3 +197,44 @@ dialog[open] { animation: pop .35s cubic-bezier(.2, 1.4, .4, 1); }
 #ptr .spin { display: inline-block; }
 #ptr.loading .spin { animation: ptrspin .8s linear infinite; }
 @keyframes ptrspin { to { transform: rotate(360deg); } }
+
+/* Add idea button */
+.add-idea {
+  font: 700 1rem var(--body); color: var(--ink); background: var(--card);
+  border: 1.5px dashed var(--accent); border-radius: 14px; padding: 12px 18px; cursor: pointer; width: 100%;
+  max-width: 604px;
+}
+.deleted { margin-top: 10px; }
+.deleted summary { font-weight: 600; font-size: .9rem; color: var(--muted); cursor: pointer; }
+
+/* Idea editor */
+#editor { width: min(94vw, 460px); max-height: 92vh; overflow: auto; }
+.editor-card { position: relative; padding: 22px 18px 18px; display: grid; gap: 14px; }
+.editor-card h2 { font-family: var(--display); font-size: 1.5rem; margin: 0; padding-right: 40px; }
+.field { display: grid; gap: 7px; }
+.field input:not([type=radio]):not([type=checkbox]), .field textarea, .lock input {
+  font: 500 1rem var(--body); color: var(--ink); background: var(--chip);
+  border: 0; border-radius: 12px; padding: 10px 12px; width: 100%;
+}
+.field input:disabled { opacity: .55; }
+.search-row { display: flex; gap: 8px; }
+.search-row button { font: 700 .92rem var(--body); border: 0; border-radius: 12px; padding: 0 14px; background: var(--ink); color: #fff; cursor: pointer; }
+.place-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.place-results:empty { display: none; }
+.place-results button {
+  width: 100%; text-align: left; border: 1.5px solid var(--line); background: #fff; border-radius: 12px;
+  padding: 8px 10px; cursor: pointer; display: grid; gap: 2px; font: 400 .88rem var(--body); color: var(--ink);
+}
+.place-results button span { color: var(--muted); font-size: .8rem; }
+.place-results .hint { margin: 0; }
+.lock { background: var(--warn); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
+.lock p { margin: 0; font-size: .9rem; }
+.lock input { background: #fff; }
+.actions .danger { color: #c92a2a; }
+
+/* Toast */
+.toast {
+  position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 999px; z-index: 60;
+  font: 600 .92rem var(--body); box-shadow: 0 8px 20px rgba(0,0,0,.25); max-width: 90vw; text-align: center;
+}
