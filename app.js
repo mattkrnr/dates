@@ -1,5 +1,5 @@
 // Wheel of Whimsy — static app for GitHub Pages.
-// Lists live in lists/lists.yaml (the index) and lists/<id>.yaml (the ideas).
+// Lists and ideas live in Supabase (whimsy_lists, whimsy_ideas); see supabase/ideas.sql.
 // Date history lives in Supabase, behind a passcode per list (see supabase/setup.sql).
 
 const CONFIG = {
