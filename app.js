@@ -958,7 +958,8 @@ function toast(msg) {
 
 function fmtPlace(r) {
   const a = r.address || {};
-  const street = [a.house_number, a.road].filter(Boolean).join(' ');
+  const road = a.road || a.pedestrian || a.footway || a.path || a.highway || '';
+  const street = road ? [a.house_number, road].filter(Boolean).join(' ') : ''; // a number without a street is useless
   const city = a.city || a.town || a.village || a.hamlet || a.suburb || a.municipality || '';
   const st = (a['ISO3166-2-lvl4'] || '').replace(/^US-/, '') || a.state || '';
   const parts = [street, city, [st, a.postcode].filter(Boolean).join(' ')].filter(Boolean);
@@ -985,7 +986,7 @@ async function searchPlaces() {
         $('#eAddress').value = addr;
         editor.coords = { lat: Number(r.lat), lng: Number(r.lon) };
         if (!$('#eName').value.trim()) $('#eName').value = name;
-        box.replaceChildren(el('li', { className: 'hint', textContent: `📍 ${addr}` }));
+        box.replaceChildren(el('li', { className: 'hint', textContent: `📍 Pinned on the map. Add the street number above if you like.` }));
       });
       return el('li', {}, b);
     }));

@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache when there's no connection.
 // Same-origin files are network-first (so list edits show up right away), cached as a fallback.
-const CACHE = 'whimsy-v5';
+const CACHE = 'whimsy-v6';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
