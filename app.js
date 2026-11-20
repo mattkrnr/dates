@@ -540,6 +540,7 @@ function matches(idea) {
   const f = state.filters;
   if (f.when !== 'any' && idea.when !== 'either' && idea.when !== f.when) return false;
   if (f.light === 'dark' && idea.daylight) return false;
+  if (f.light === 'day' && !idea.daylight) return false; // only ideas that need daylight
   const season = f.season === 'now' ? seasonOf(state.plan) : f.season;
   if (season !== 'any' && !idea.seasons.has(season)) return false;
   if (f.budget !== 'any' && idea.budget != null && idea.budget > Number(f.budget)) return false;
