@@ -450,8 +450,16 @@ function renderHistory() {
   const sel = $('#logIdea');
   const cur = sel.value;
   sel.replaceChildren(el('option', { value: '', textContent: 'Which date?' }),
+    el('option', { value: '__other', textContent: '✨ Something not on the list…' }),
     ...[...state.ideas].sort((a, b) => a.name.localeCompare(b.name)).map((i) => el('option', { value: i.name, textContent: i.name })));
   sel.value = cur;
+  syncLogOther();
+}
+
+// "Something not on the list…" shows a name box and the "also add to ideas" tick box.
+function syncLogOther() {
+  const other = $('#logIdea').value === '__other';
+  $('#logOtherBox').hidden = !other;
 }
 
 function setStars(n) {
@@ -463,6 +471,7 @@ function openLog(ideaName, date) {
   const p = $('#historyPanel');
   p.open = true;
   $('#logIdea').value = ideaName || '';
+  syncLogOther();
   $('#logDate').value = date || ymd(new Date());
   setStars(0);
   $('#logNote').value = '';
@@ -476,8 +485,18 @@ function needPasscode(statusEl) {
 }
 
 async function saveLog() {
-  const idea = $('#logIdea').value, date = $('#logDate').value;
+  let idea = $('#logIdea').value;
+  const date = $('#logDate').value;
   const status = $('#logStatus');
+  let addAsIdea = false;
+  if (idea === '__other') {
+    idea = $('#logOther').value.trim();
+    if (!idea) { status.textContent = 'What did you do? Give the date a name.'; $('#logOther').focus(); return; }
+    // If it matches an idea already on the list, log it against that one instead of adding a duplicate.
+    const existing = state.ideas.find((i) => i.name.toLowerCase() === idea.toLowerCase());
+    if (existing) idea = existing.name;
+    else addAsIdea = $('#logAddIdea').checked;
+  }
   if (!idea || !date) { status.textContent = 'Pick the date idea and the day you went.'; return; }
   if (!passcode()) { needPasscode(status); return; }
   const btn = $('#logSave');
@@ -491,10 +510,16 @@ async function saveLog() {
     store.set('historyCache:' + state.list.id, state.history);
     const planned = store.get('planned:' + state.list.id, null);
     if (planned && planned.idea === idea) store.del('planned:' + state.list.id);
+    const note = $('#logNote').value.trim();
     status.textContent = 'Saved! 💕';
-    $('#logNote').value = ''; setStars(0); $('#logIdea').value = '';
+    $('#logNote').value = ''; $('#logOther').value = ''; setStars(0); $('#logIdea').value = '';
     renderHistory(); renderReminder(); render();
     confetti();
+    // Off-list date: open the add-idea form pre-filled so it can go on the wheel too.
+    if (addAsIdea) {
+      status.textContent = 'Saved! 💕 Now add where it was, and it joins your ideas.';
+      setTimeout(() => openEditor(null, { name: idea, notes: note }), 900);
+    }
   } catch (e) {
     status.textContent = e instanceof PasscodeError ? e.message + ' Check it in ⚙️ Settings.' : e.message + ' Your entry wasn\'t saved — try again when you\'re online.';
   }
@@ -875,6 +900,7 @@ function bindHistoryAndSettings() {
   $('#logDate').max = ymd(new Date());
   $('#logDate').value = ymd(new Date());
   $('#logSave').addEventListener('click', saveLog);
+  $('#logIdea').addEventListener('change', () => { syncLogOther(); if ($('#logIdea').value === '__other') $('#logOther').focus(); });
 
   $('#codeSave').addEventListener('click', async () => {
     const code = $('#code').value.trim();
@@ -1005,11 +1031,11 @@ function setRadio(name, value) {
   document.querySelectorAll(`#editorForm input[name=${name}]`).forEach((r) => { r.checked = r.value === String(value ?? ''); });
 }
 
-function openEditor(idea = null) {
+function openEditor(idea = null, prefill = {}) {
   editor.idea = idea;
   editor.coords = idea?.coords && idea.geo === 'ok' ? idea.coords : null;
   $('#eTitle').textContent = idea ? 'Edit date idea' : 'New date idea';
-  $('#eName').value = idea?.name || '';
+  $('#eName').value = idea?.name || prefill.name || '';
   $('#eHome').checked = idea ? idea.address === 'home' : false;
   $('#eAddress').value = idea && idea.address !== 'home' ? idea.address : '';
   syncHome();
@@ -1020,14 +1046,15 @@ function openEditor(idea = null) {
   document.querySelectorAll('#editorForm input[name=eSeason]').forEach((c) => { c.checked = !!idea && idea.seasons.size < 4 && idea.seasons.has(c.value); });
   setRadio('eBudget', idea?.budget || '');
   setRadio('eEnergy', idea?.energy || '');
-  $('#eNotes').value = idea?.notes || '';
+  $('#eNotes').value = idea?.notes || prefill.notes || '';
   $('#eLink').value = idea?.link || '';
   $('#eDelete').hidden = !idea;
   $('#eLock').hidden = !!passcode();
   $('#eCode').value = '';
   $('#eStatus').textContent = '';
   $('#editor').showModal();
-  if (!idea) setTimeout(() => $('#eName').focus(), 50);
+  if (!idea) setTimeout(() => (prefill.name ? $('#ePlaceQ') : $('#eName')).focus(), 50);
+  if (prefill.name) $('#ePlaceQ').value = prefill.name;
 }
 
 async function ensureUnlocked(statusEl) {

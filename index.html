@@ -124,6 +124,10 @@
       <p id="histNote" class="hint"></p>
       <form id="logForm" class="log-form" onsubmit="return false">
         <select id="logIdea" aria-label="Which date"></select>
+        <div id="logOtherBox" class="log-other" hidden>
+          <input id="logOther" maxlength="120" placeholder="What did you do? e.g. Surprise concert in Philly" autocomplete="off">
+          <div class="chips"><label><input type="checkbox" id="logAddIdea" checked><span>＋ Also add it to our ideas</span></label></div>
+        </div>
         <div class="log-row">
           <input id="logDate" type="date" aria-label="When">
           <div class="stars" id="logStars" role="radiogroup" aria-label="Rating">
