@@ -98,6 +98,8 @@ function milesBetween(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 function isHome(addr) { return !addr || String(addr).trim().toLowerCase() === 'home'; }
+function isAnywhere(addr) { return /^(anywhere|any ?where|any ?place|wherever|varies|n\/?a|tbd|none|-+)$/i.test(String(addr || '').trim()); }
+const noPlace = (idea) => idea.address === 'home' || idea.address === 'anywhere';
 function el(tag, props = {}, ...kids) { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; }
 function starStr(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 
@@ -119,7 +121,7 @@ function normalize(raw, id) {
     id,
     row: raw.row || null,
     name: String(raw.name || 'Untitled date'),
-    address: isHome(raw.address) ? 'home' : String(raw.address),
+    address: isHome(raw.address) ? 'home' : isAnywhere(raw.address) ? 'anywhere' : String(raw.address),
     when: when === 'weekend' || when === 'weeknight' ? when : 'either',
     daylight: yes(raw.daylight),
     outdoor: yes(raw.outdoor),
@@ -221,7 +223,7 @@ async function geocodeAddress(addr) {
 let geoRun = 0;
 async function geocodeIdeas() {
   const run = ++geoRun;
-  const todo = state.ideas.filter((i) => i.address !== 'home' && !i.coords);
+  const todo = state.ideas.filter((i) => !noPlace(i) && !i.coords);
   let left = todo.length;
   for (const idea of todo) {
     if (run !== geoRun) return;
@@ -249,6 +251,7 @@ async function geocodeIdeas() {
 function updateDistances() {
   for (const idea of state.ideas) {
     if (idea.address === 'home') { idea.dist = 0; idea.geo = 'ok'; continue; }
+    if (idea.address === 'anywhere') { idea.dist = null; idea.geo = 'ok'; continue; } // passes any distance filter
     if (idea.coords && idea.geo === 'pending') idea.geo = 'ok';
     idea.dist = idea.coords && state.origin ? milesBetween(state.origin, idea.coords) : null;
   }
@@ -581,6 +584,7 @@ function setStatus(t) { $('#status').textContent = t; }
 function describe(idea) {
   const bits = [];
   if (idea.address === 'home') bits.push('🏠 at home');
+  else if (idea.address === 'anywhere') bits.push('🌎 anywhere');
   else if (idea.dist != null) bits.push(`${idea.dist < 10 ? idea.dist.toFixed(1) : Math.round(idea.dist)} mi${idea.geo === 'approx' ? ' (approx)' : ''}`);
   else if (idea.geo === 'failed') bits.push('distance unknown');
   if (idea.budget) bits.push('$'.repeat(idea.budget));
@@ -751,11 +755,14 @@ function showResult(idea) {
   const h = lastDone(idea);
   $('#rHistory').hidden = !h;
   if (h) $('#rHistory').textContent = `Last time: ${prettyDate(h.date, { month: 'short', day: 'numeric', year: 'numeric' })}${h.rating ? ' ' + starStr(h.rating) : ''}${h.note ? ` — "${h.note}"` : ''}`;
-  const home = idea.address === 'home';
-  $('#rAddress').textContent = home ? '🏠 At home' : '📍 ' + idea.address;
+  const home = idea.address === 'home', anywhere = idea.address === 'anywhere';
+  $('#rAddress').textContent = home ? '🏠 At home' : anywhere ? '🌎 Anywhere: pick a spot you like' : '📍 ' + idea.address;
   const map = $('#rMap');
   map.hidden = home;
-  map.href = home ? '#' : 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(idea.address);
+  map.textContent = anywhere ? 'Find a spot nearby' : 'Directions';
+  map.href = home ? '#'
+    : anywhere ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('cafes bars restaurants near me')
+    : 'https://www.google.com/maps/dir/?api=1&destination=' + encodeURIComponent(idea.address);
   const link = $('#rLink');
   link.hidden = !idea.link;
   if (idea.link) link.href = idea.link;
@@ -1009,7 +1016,7 @@ async function searchPlaces() {
       const addr = fmtPlace(r);
       const b = el('button', { type: 'button' }, el('b', { textContent: name }), el('span', { textContent: addr }));
       b.addEventListener('click', () => {
-        $('#eHome').checked = false; syncHome();
+        $('#eHome').checked = false; $('#eAnywhere').checked = false; syncHome();
         $('#eAddress').value = addr;
         editor.coords = { lat: Number(r.lat), lng: Number(r.lon) };
         if (!$('#eName').value.trim()) $('#eName').value = name;
@@ -1020,11 +1027,14 @@ async function searchPlaces() {
   } catch { box.replaceChildren(el('li', { className: 'hint', textContent: "Couldn't search right now. You can type the address below." })); }
 }
 
-function syncHome() {
-  const home = $('#eHome').checked;
-  $('#eAddress').disabled = home;
-  if (home) { $('#eAddress').value = ''; editor.coords = null; }
-  $('#eAddress').placeholder = home ? 'At home' : 'Street, town, state ZIP';
+// "At home" and "Anywhere" replace the address; only one can be on.
+function syncHome(e) {
+  if (e?.target === $('#eHome') && $('#eHome').checked) $('#eAnywhere').checked = false;
+  if (e?.target === $('#eAnywhere') && $('#eAnywhere').checked) $('#eHome').checked = false;
+  const home = $('#eHome').checked, anywhere = $('#eAnywhere').checked;
+  $('#eAddress').disabled = home || anywhere;
+  if (home || anywhere) { $('#eAddress').value = ''; editor.coords = null; }
+  $('#eAddress').placeholder = home ? 'At home' : anywhere ? 'Anywhere' : 'Street, town, state ZIP';
 }
 
 function setRadio(name, value) {
@@ -1036,8 +1046,9 @@ function openEditor(idea = null, prefill = {}) {
   editor.coords = idea?.coords && idea.geo === 'ok' ? idea.coords : null;
   $('#eTitle').textContent = idea ? 'Edit date idea' : 'New date idea';
   $('#eName').value = idea?.name || prefill.name || '';
-  $('#eHome').checked = idea ? idea.address === 'home' : false;
-  $('#eAddress').value = idea && idea.address !== 'home' ? idea.address : '';
+  $('#eHome').checked = idea?.address === 'home';
+  $('#eAnywhere').checked = idea?.address === 'anywhere';
+  $('#eAddress').value = idea && !noPlace(idea) ? idea.address : '';
   syncHome();
   $('#ePlaceQ').value = ''; $('#ePlaceResults').replaceChildren();
   setRadio('eWhen', idea?.when || 'either');
@@ -1073,11 +1084,11 @@ async function ensureUnlocked(statusEl) {
 async function saveIdea() {
   const st = $('#eStatus');
   const name = $('#eName').value.trim();
-  const home = $('#eHome').checked;
-  const address = home ? 'home' : $('#eAddress').value.trim();
+  const home = $('#eHome').checked, anywhere = $('#eAnywhere').checked;
+  const address = home ? 'home' : anywhere ? 'anywhere' : $('#eAddress').value.trim();
   const link = $('#eLink').value.trim();
   if (!name) { st.textContent = 'Give the date a name.'; $('#eName').focus(); return; }
-  if (!home && !address) { st.textContent = 'Add a place: search for it, type an address, or tick "At home".'; return; }
+  if (!address) { st.textContent = 'Add a place: search for it, type an address, or pick "At home" or "Anywhere".'; return; }
   if (link && !/^https?:\/\//i.test(link)) { st.textContent = 'The website should start with https://'; return; }
   const btn = $('#eSave');
   btn.disabled = true; st.textContent = 'Saving…';
@@ -1093,7 +1104,7 @@ async function saveIdea() {
       budget: $('#editorForm').elements.eBudget.value || null,
       energy: $('#editorForm').elements.eEnergy.value || null,
       notes: $('#eNotes').value.trim(), link: link || null,
-      lat: home ? null : editor.coords?.lat ?? null, lng: home ? null : editor.coords?.lng ?? null,
+      lat: home || anywhere ? null : editor.coords?.lat ?? null, lng: home || anywhere ? null : editor.coords?.lng ?? null,
     };
     // If the address was typed by hand (no search pick), let the app look it up again.
     if (prev && prev.address !== address && !editor.coords) { payload.lat = null; payload.lng = null; }
@@ -1110,7 +1121,7 @@ async function saveIdea() {
     updateDistances(); renderHistory(); render();
     $('#editor').close();
     toast(prev ? 'Saved ✓' : `Added "${saved.name}" to the wheel 🎉`);
-    if (!saved.coords && saved.address !== 'home') geocodeIdeas();
+    if (!saved.coords && !noPlace(saved)) geocodeIdeas();
   } catch (e) {
     st.textContent = e instanceof PasscodeError ? e.message : `Couldn't save: ${e.message}`;
   } finally { btn.disabled = false; }
@@ -1170,6 +1181,7 @@ function bindEditor() {
   $('#ePlaceGo').addEventListener('click', searchPlaces);
   $('#ePlaceQ').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchPlaces(); } });
   $('#eHome').addEventListener('change', syncHome);
+  $('#eAnywhere').addEventListener('change', syncHome);
   $('#eAddress').addEventListener('input', () => { editor.coords = null; });
   $('#deletedPanel').addEventListener('toggle', () => { if ($('#deletedPanel').open) loadDeleted(); });
 }
